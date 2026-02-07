@@ -1,0 +1,113 @@
+PackageIdentifier: Microsoft.VisualStudio.2022.BuildTools
+PackageVersion: 17.14.25
+Moniker: vs2022-buildtools
+Tags:
+- c#
+- c++
+- vs
+PackageLocale: en-US
+Copyright: Copyright (c) Microsoft Corporation. All rights reserved.
+ShortDescription: These Build Tools allow you to build Visual Studio projects from
+  a command-line interface.
+License: Proprietary
+LicenseUrl: https://visualstudio.microsoft.com/license-terms/
+PackageName: Visual Studio BuildTools 2022
+PackageUrl: https://visualstudio.microsoft.com/
+Publisher: Microsoft Corporation
+Installers:
+- Architecture: x64
+  InstallerType: exe
+  InstallerSha256: 0f953a61f0d6f37d425e021814b0ec005035871848d9eb703208538df20476d4
+  InstallerUrl: https://download.visualstudio.microsoft.com/download/pr/64dbe648-9527-4b8e-9b08-04d2228e1191/0f953a61f0d6f37d425e021814b0ec005035871848d9eb703208538df20476d4/vs_BuildTools.exe
+  Scope: machine
+  InstallerAbortsTerminal: false
+  InstallLocationRequired: false
+  RequireExplicitUpgrade: false
+  DisplayInstallWarnings: false
+  DownloadCommandProhibited: false
+  ArchiveBinariesDependOnPath: false
+  UpgradeBehavior: install
+  Commands:
+  - devenv
+  AppsAndFeaturesEntries:
+  - DisplayVersion: 17.14.25 (January 2026)
+  ExpectedReturnCodes:
+  - InstallerReturnCode: 740
+    ReturnResponse: custom
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 1001
+    ReturnResponse: installInProgress
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 1003
+    ReturnResponse: fileInUse
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 1618
+    ReturnResponse: installInProgress
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 1641
+    ReturnResponse: rebootInitiated
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 3010
+    ReturnResponse: rebootRequiredToFinish
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 5001
+    ReturnResponse: custom
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 5002
+    ReturnResponse: custom
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 5003
+    ReturnResponse: custom
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 5004
+    ReturnResponse: cancelledByUser
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 5005
+    ReturnResponse: custom
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 5007
+    ReturnResponse: custom
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 5008
+    ReturnResponse: custom
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 8001
+    ReturnResponse: blockedByPolicy
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 8002
+    ReturnResponse: blockedByPolicy
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 8003
+    ReturnResponse: blockedByPolicy
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 8004
+    ReturnResponse: blockedByPolicy
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 8005
+    ReturnResponse: blockedByPolicy
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 8006
+    ReturnResponse: custom
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 8007
+    ReturnResponse: blockedByPolicy
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 8008
+    ReturnResponse: blockedByPolicy
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 8009
+    ReturnResponse: blockedByPolicy
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 2148734213
+    ReturnResponse: custom
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  - InstallerReturnCode: 3221246609
+    ReturnResponse: noNetwork
+    ReturnResponseUrl: https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/installation/issues-workarounds-visual-studio-setup
+  InstallerSwitches:
+    Custom: --wait --campaign "winget"
+    Silent: --quiet
+    SilentWithProgress: --passive
+    Upgrade: update
+ManifestVersion: 1.9.0
+ManifestType: merged

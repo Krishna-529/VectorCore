@@ -1,0 +1,23 @@
+# ninja log v7
+85	241	7921193317661672	CMakeFiles/vectrax_core.dir/src/distance.cpp.obj	199e22a36c3f36a3
+111	389	7921193317899037	CMakeFiles/vectrax_smoke_test.dir/tests/test_smoke.cpp.obj	cfa0c8ec0d2dfa65
+74	583	7921193317542514	CMakeFiles/vectrax_core.dir/src/bruteforce_index.cpp.obj	d5c6a612a5606042
+94	721	7921193317745728	CMakeFiles/vectrax_core.dir/src/hnsw_index.cpp.obj	685dab6beba57a9
+722	789	7921193324013816	vectrax_core.lib	c6b2d01fc849b89b
+789	932	7921193324670505	vectrax_smoke_test.exe	6851760933076be6
+40	1662	7921193639796136	CMakeFiles/vectrax.dir/src/pybind_module.cpp.obj	a3534fd491000668
+1664	3801	7921193656054712	vectrax.cp312-win_amd64.pyd	b3235de601106825
+50	1625	7921202105460200	build.ninja	6bc5982add318677
+50	1625	7921202105460200	C:/Users/HPW/Desktop/Vectra-X/Vectra-X/build_ninja/cmake_install.cmake	6bc5982add318677
+50	1625	7921202105460200	C:/Users/HPW/Desktop/Vectra-X/Vectra-X/build_ninja/_deps/pybind11-build/cmake_install.cmake	6bc5982add318677
+50	1625	7921202105460200	C:/Users/HPW/Desktop/Vectra-X/Vectra-X/build_ninja/CTestTestfile.cmake	6bc5982add318677
+55	594	7921202106573630	CMakeFiles/vectrax_core.dir/src/VectorStore.cpp.obj	d04015fbed15b243
+43	985	7921202106453488	CMakeFiles/vectrax_core.dir/src/hnsw_index.cpp.obj	685dab6beba57a9
+985	1100	7921202115865072	vectrax_core.lib	f3ac0592641acd3a
+1100	1268	7921202117026523	vectrax_smoke_test.exe	6851760933076be6
+65	3335	7921202106665295	CMakeFiles/vectrax.dir/src/pybind_module.cpp.obj	a3534fd491000668
+3337	5969	7921202139396565	vectrax.cp312-win_amd64.pyd	b3235de601106825
+41	782	7921204549300775	CMakeFiles/vectrax_core.dir/src/VectorStore.cpp.obj	d04015fbed15b243
+783	872	7921204556710833	vectrax_core.lib	f3ac0592641acd3a
+881	1061	7921204557700849	vectrax_smoke_test.exe	6851760933076be6
+872	3070	7921204557603128	vectrax.cp312-win_amd64.pyd	b3235de601106825

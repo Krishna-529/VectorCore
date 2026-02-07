@@ -1,0 +1,10 @@
+README.md
+pyproject.toml
+setup.py
+src/VectorStore.cpp
+src/main.cpp
+vectrax.egg-info/PKG-INFO
+vectrax.egg-info/SOURCES.txt
+vectrax.egg-info/dependency_links.txt
+vectrax.egg-info/not-zip-safe
+vectrax.egg-info/top_level.txt

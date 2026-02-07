@@ -1,0 +1,9 @@
+C:/Users/HPW/Desktop/Vectra-X/Vectra-X/build_ninja/CMakeFiles/vectrax_core.dir
+C:/Users/HPW/Desktop/Vectra-X/Vectra-X/build_ninja/CMakeFiles/vectrax.dir
+C:/Users/HPW/Desktop/Vectra-X/Vectra-X/build_ninja/CMakeFiles/vectrax_smoke_test.dir
+C:/Users/HPW/Desktop/Vectra-X/Vectra-X/build_ninja/CMakeFiles/test.dir
+C:/Users/HPW/Desktop/Vectra-X/Vectra-X/build_ninja/CMakeFiles/edit_cache.dir
+C:/Users/HPW/Desktop/Vectra-X/Vectra-X/build_ninja/CMakeFiles/rebuild_cache.dir
+C:/Users/HPW/Desktop/Vectra-X/Vectra-X/build_ninja/_deps/pybind11-build/CMakeFiles/test.dir
+C:/Users/HPW/Desktop/Vectra-X/Vectra-X/build_ninja/_deps/pybind11-build/CMakeFiles/edit_cache.dir
+C:/Users/HPW/Desktop/Vectra-X/Vectra-X/build_ninja/_deps/pybind11-build/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/HPW/Desktop/Vectra-X/Vectra-X/build_ninja/cmake_install.cmake",
+		"C:/Users/HPW/Desktop/Vectra-X/Vectra-X/build_ninja/_deps/pybind11-build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
