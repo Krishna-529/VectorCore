@@ -55,21 +55,21 @@ inline const float* require_1d_float32_contiguous(const py::array& arr, std::siz
 
 } // namespace
 
-PYBIND11_MODULE(vectrax, m) {
-  py::print("Vectra-X Online");
-  m.doc() = "Vectra-X: zero-copy VectorStore bindings (pybind11)";
+PYBIND11_MODULE(vectorcore, m) {
+  py::print("VectorCore Online");
+  m.doc() = "VectorCore: zero-copy VectorStore bindings (pybind11)";
 
-  m.def("ping", []() { return "Vectra-X Online"; });
+  m.def("ping", []() { return "VectorCore Online"; });
 
-  py::class_<vectrax::VectorStore>(m, "VectorStore")
+  py::class_<vectorcore::VectorStore>(m, "VectorStore")
       .def(py::init<std::size_t>(), py::arg("dim"))
-      .def_property_readonly("dim", &vectrax::VectorStore::dim)
-      .def_property_readonly("size", &vectrax::VectorStore::size)
+      .def_property_readonly("dim", &vectorcore::VectorStore::dim)
+      .def_property_readonly("size", &vectorcore::VectorStore::size)
 
       // store.add_vector(id, np.ndarray[float32, (dim,)])
       .def(
           "add_vector",
-          [](vectrax::VectorStore& self, int id, const py::array& vec) {
+          [](vectorcore::VectorStore& self, int id, const py::array& vec) {
             const float* ptr = require_1d_float32_contiguous(vec, self.dim());
             self.add_vector(id, ptr, self.dim());
           },
@@ -80,7 +80,7 @@ PYBIND11_MODULE(vectrax, m) {
       // store.search(np.ndarray[float32, (dim,)], k) -> List[Tuple[distance, id]]
       .def(
           "search",
-          [](const vectrax::VectorStore& self, const py::array& query, int k) {
+          [](const vectorcore::VectorStore& self, const py::array& query, int k) {
             const float* ptr = require_1d_float32_contiguous(query, self.dim());
             return self.search(ptr, k);
           },

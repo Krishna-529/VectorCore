@@ -6,7 +6,7 @@
 #include <queue>
 #include <utility>
 
-namespace vectrax {
+namespace vectorcore {
 
 float VectorStore::calculate_l2_dist(const float* a, const float* b, std::size_t dim) noexcept {
   // Scalar fallback (always correct).
@@ -165,4 +165,4 @@ std::vector<std::pair<float, int>> VectorStore::search(const float* query, int k
   return result;
 }
 
-} // namespace vectrax
+} // namespace vectorcore

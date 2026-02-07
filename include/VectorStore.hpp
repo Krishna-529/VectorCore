@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace vectrax {
+namespace vectorcore {
 
 // VectorStore
 // -----------
@@ -81,4 +81,4 @@ private:
   std::vector<int> ids_;
 };
 
-} // namespace vectrax
+} // namespace vectorcore

@@ -1,8 +1,8 @@
-#include "vectrax/distance.h"
+#include "vectorcore/distance.h"
 
 #include <immintrin.h>
 
-namespace vectrax {
+namespace vectorcore {
 
 float l2_squared_scalar(const float* a, const float* b, std::size_t dim) noexcept {
   float acc = 0.0f;
@@ -102,4 +102,4 @@ float inner_product(const float* a, const float* b, std::size_t dim) noexcept {
 #endif
 }
 
-} // namespace vectrax
+} // namespace vectorcore

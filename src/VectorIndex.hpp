@@ -2,11 +2,11 @@
 
 #include <cstddef>
 
-namespace vectrax {
+namespace vectorcore {
 
 // This header is a placeholder for the 1-day hack setup.
 // In the full CMake-based prototype, the real implementation lives under
-// include/vectrax/ (BruteForceIndex, HnswIndex, AVX2 distance kernels).
+// include/vectorcore/ (BruteForceIndex, HnswIndex, AVX2 distance kernels).
 //
 // Keeping it here matches the requested file structure:
 //   src/main.cpp
@@ -19,4 +19,4 @@ struct VectorIndex {
   std::size_t dim = 0;
 };
 
-} // namespace vectrax
+} // namespace vectorcore

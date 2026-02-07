@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-#include "vectrax/bruteforce_index.h"
-#include "vectrax/hnsw_index.h"
+#include "vectorcore/bruteforce_index.h"
+#include "vectorcore/hnsw_index.h"
 
 namespace py = pybind11;
 
@@ -83,34 +83,34 @@ Float32VectorView as_float32_vector_view(const py::array& arr, std::size_t expec
   return Float32VectorView{static_cast<const float*>(info.ptr), expected_dim};
 }
 
-vectrax::Metric parse_metric(const std::string& m) {
+vectorcore::Metric parse_metric(const std::string& m) {
   if (m == "l2" || m == "l2_squared") {
-    return vectrax::Metric::L2_SQUARED;
+    return vectorcore::Metric::L2_SQUARED;
   }
   if (m == "ip" || m == "inner_product") {
-    return vectrax::Metric::INNER_PRODUCT;
+    return vectorcore::Metric::INNER_PRODUCT;
   }
   throw std::invalid_argument("Unknown metric: " + m);
 }
 
 } // namespace
 
-PYBIND11_MODULE(vectrax, m) {
-  m.doc() = "Vectra-X: high-performance vector search engine (C++17 + pybind11)";
-  m.attr("__version__") = VECTRAX_VERSION;
+PYBIND11_MODULE(vectorcore, m) {
+  m.doc() = "VectorCore: high-performance vector search engine (C++17 + pybind11)";
+  m.attr("__version__") = vectorcore_VERSION;
 
-  py::enum_<vectrax::Metric>(m, "Metric")
-      .value("L2_SQUARED", vectrax::Metric::L2_SQUARED)
-      .value("INNER_PRODUCT", vectrax::Metric::INNER_PRODUCT);
+  py::enum_<vectorcore::Metric>(m, "Metric")
+      .value("L2_SQUARED", vectorcore::Metric::L2_SQUARED)
+      .value("INNER_PRODUCT", vectorcore::Metric::INNER_PRODUCT);
 
-  py::class_<vectrax::BruteForceIndex>(m, "BruteForceIndex")
+  py::class_<vectorcore::BruteForceIndex>(m, "BruteForceIndex")
       .def(py::init([](std::size_t dim, const std::string& metric) {
-             return vectrax::BruteForceIndex(dim, parse_metric(metric));
+             return vectorcore::BruteForceIndex(dim, parse_metric(metric));
            }),
            py::arg("dim"), py::arg("metric") = "l2")
-      .def_property_readonly("dim", &vectrax::BruteForceIndex::dim)
-      .def_property_readonly("size", &vectrax::BruteForceIndex::size)
-      .def("add", [](vectrax::BruteForceIndex& self, const py::array& x, py::object ids_obj) {
+      .def_property_readonly("dim", &vectorcore::BruteForceIndex::dim)
+      .def_property_readonly("size", &vectorcore::BruteForceIndex::size)
+      .def("add", [](vectorcore::BruteForceIndex& self, const py::array& x, py::object ids_obj) {
         auto view = as_float32_matrix_view(x, self.dim());
 
         const std::uint64_t* ids_ptr = nullptr;
@@ -139,7 +139,7 @@ PYBIND11_MODULE(vectrax, m) {
 
         self.add(view.data, view.rows, ids_ptr);
       }, py::arg("x"), py::arg("ids") = py::none())
-      .def("search", [](const vectrax::BruteForceIndex& self, const py::array& q, std::size_t k) {
+      .def("search", [](const vectorcore::BruteForceIndex& self, const py::array& q, std::size_t k) {
         // Support q shape (dim,) or (m, dim)
         py::buffer_info info = q.request();
 
@@ -183,14 +183,14 @@ PYBIND11_MODULE(vectrax, m) {
       }, py::arg("q"), py::arg("k"))
       ;
 
-  py::class_<vectrax::HnswIndex>(m, "HnswIndex")
+  py::class_<vectorcore::HnswIndex>(m, "HnswIndex")
       .def(py::init([](std::size_t dim, std::size_t M, const std::string& metric) {
-             return vectrax::HnswIndex(dim, M, parse_metric(metric));
+             return vectorcore::HnswIndex(dim, M, parse_metric(metric));
            }),
            py::arg("dim"), py::arg("M") = 16, py::arg("metric") = "l2")
-      .def_property_readonly("dim", &vectrax::HnswIndex::dim)
-      .def_property_readonly("size", &vectrax::HnswIndex::size)
-      .def("add", [](vectrax::HnswIndex& self, const py::array& x, py::object ids_obj) {
+      .def_property_readonly("dim", &vectorcore::HnswIndex::dim)
+      .def_property_readonly("size", &vectorcore::HnswIndex::size)
+      .def("add", [](vectorcore::HnswIndex& self, const py::array& x, py::object ids_obj) {
         auto view = as_float32_matrix_view(x, self.dim());
 
         const std::uint64_t* ids_ptr = nullptr;
@@ -216,7 +216,7 @@ PYBIND11_MODULE(vectrax, m) {
 
         self.add(view.data, view.rows, ids_ptr);
       }, py::arg("x"), py::arg("ids") = py::none())
-      .def("search", [](const vectrax::HnswIndex& self, const py::array& q, std::size_t k) {
+      .def("search", [](const vectorcore::HnswIndex& self, const py::array& q, std::size_t k) {
         auto v = as_float32_vector_view(q, self.dim());
 
         py::array_t<std::uint64_t> out_ids(k);

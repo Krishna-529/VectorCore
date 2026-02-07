@@ -1,11 +1,11 @@
-#include "vectrax/hnsw_index.h"
+#include "vectorcore/hnsw_index.h"
 
 #include <algorithm>
 #include <limits>
 #include <queue>
 #include <stdexcept>
 
-namespace vectrax {
+namespace vectorcore {
 
 namespace {
 inline float badness_from_score(Metric metric, float score) noexcept {
@@ -199,4 +199,4 @@ void HnswIndex::search(const float* query, std::size_t k, std::uint64_t* out_ids
   }
 }
 
-} // namespace vectrax
+} // namespace vectorcore

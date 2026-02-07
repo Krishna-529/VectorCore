@@ -2,7 +2,7 @@
 
 #include <vector>
 
-namespace vectrax {
+namespace vectorcore {
 
 /*
 Algorithm Description
@@ -55,4 +55,4 @@ private:
   std::vector<HnswNode> nodes_;
 };
 
-} // namespace vectrax
+} // namespace vectorcore

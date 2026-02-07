@@ -9,7 +9,7 @@
   #include <malloc.h> // _aligned_malloc, _aligned_free
 #endif
 
-namespace vectrax {
+namespace vectorcore {
 
 // A small aligned allocator for std::vector.
 //
@@ -91,4 +91,4 @@ inline bool operator!=(const AlignedAllocator<T1, A1>& a, const AlignedAllocator
   return !(a == b);
 }
 
-} // namespace vectrax
+} // namespace vectorcore

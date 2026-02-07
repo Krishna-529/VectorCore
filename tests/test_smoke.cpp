@@ -2,12 +2,12 @@
 #include <cstdint>
 #include <vector>
 
-#include "vectrax/bruteforce_index.h"
+#include "vectorcore/bruteforce_index.h"
 
 int main() {
   constexpr std::size_t dim = 4;
 
-  vectrax::BruteForceIndex index(dim, vectrax::Metric::L2_SQUARED);
+  vectorcore::BruteForceIndex index(dim, vectorcore::Metric::L2_SQUARED);
 
   // Two easy vectors.
   const float data[] = {

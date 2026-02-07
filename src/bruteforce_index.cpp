@@ -1,9 +1,9 @@
-#include "vectrax/bruteforce_index.h"
+#include "vectorcore/bruteforce_index.h"
 
 #include <algorithm>
 #include <cstring>
 
-namespace vectrax {
+namespace vectorcore {
 
 namespace {
 
@@ -124,4 +124,4 @@ void BruteForceIndex::search(const float* query, std::size_t k, std::uint64_t* o
   }
 }
 
-} // namespace vectrax
+} // namespace vectorcore

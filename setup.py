@@ -35,7 +35,7 @@ def compile_args():
 
 ext_modules = [
     Pybind11Extension(
-        "vectrax",  # module name: import vectrax
+        "vectorcore",  # module name: import vectorcore
         [
             "src/main.cpp",
             "src/VectorStore.cpp",
@@ -51,9 +51,9 @@ ext_modules = [
 
 
 setup(
-    name="vectrax",
+    name="vectorcore",
     version="0.0.0",
-    description="Vectra-X (prototype) - pybind11 extension",
+    description="VectorCore (prototype) - pybind11 extension",
     ext_modules=ext_modules,
     cmdclass={"build_ext": build_ext},
     zip_safe=False,

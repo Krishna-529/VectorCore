@@ -8,10 +8,10 @@
 #include <utility>
 #include <vector>
 
-#include "vectrax/aligned_allocator.h"
-#include "vectrax/distance.h"
+#include "vectorcore/aligned_allocator.h"
+#include "vectorcore/distance.h"
 
-namespace vectrax {
+namespace vectorcore {
 
 // BruteForceIndex
 // --------------
@@ -54,4 +54,4 @@ private:
   float score(const float* a, const float* b) const noexcept;
 };
 
-} // namespace vectrax
+} // namespace vectorcore

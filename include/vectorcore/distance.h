@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace vectrax {
+namespace vectorcore {
 
 // We compute distances in float for throughput.
 // For ranking (top-k), float precision is typically sufficient for embeddings.
@@ -25,4 +25,4 @@ float inner_product_avx2(const float* a, const float* b, std::size_t dim) noexce
 float l2_squared(const float* a, const float* b, std::size_t dim) noexcept;
 float inner_product(const float* a, const float* b, std::size_t dim) noexcept;
 
-} // namespace vectrax
+} // namespace vectorcore

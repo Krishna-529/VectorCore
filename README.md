@@ -1,6 +1,6 @@
-# Vectra-X: High-Performance C++ Vector Search Engine with Python Bindings
+# VectorCore: High-Performance C++ Vector Search Engine with Python Bindings
 
-**Vectra-X** is an embedded, high-performance vector search engine designed to demonstrate advanced C++ optimization techniques, SIMD acceleration, and efficient foreign function interfaces (FFI) with Python.
+**VectorCore** is an embedded, high-performance vector search engine designed to demonstrate advanced C++ optimization techniques, SIMD acceleration, and efficient foreign function interfaces (FFI) with Python.
 
 Designed as an educational yet functional prototype, it addresses the **"Two-Language Problem"** in high-performance computing (HPC): utilizing Python for its ease of use and ecosystem (NumPy, PyTorch) while leveraging C++ for the computationally intensive L2 distance calculations required by vector search.
 
@@ -33,7 +33,7 @@ In pure Python, this is prohibitively slow. While libraries like Faiss exist, un
 2.  **Compiler interactions**: How flags like `/arch:AVX2` or `-mfma` change code generation.
 3.  **Cross-language bindings**: Passing memory pointers safely between Python and C++.
 
-Vectra-X is a clean-sheet implementation of these concepts, serving as a reference for building high-scale search infrastructure.
+VectorCore is a clean-sheet implementation of these concepts, serving as a reference for building high-scale search infrastructure.
 
 ---
 
@@ -66,7 +66,7 @@ graph TD
 
 1.  **Storage Layer**: A strictly typed, contiguous memory block managed by C++.
 2.  **Compute Layer**: An AVX2-optimized distance kernel that processes 8 dimensions per CPU cycle.
-3.  **Interface Layer**: A `pybind11` module that exposes the C++ class as a native Python object, `vectrax.VectorStore`.
+3.  **Interface Layer**: A `pybind11` module that exposes the C++ class as a native Python object, `vectorcore.VectorStore`.
 
 ---
 
@@ -82,7 +82,7 @@ std::vector<std::vector<float>> data;
 ```
 This causes **heap fragmentation**. Each inner vector is allocated separately in memory. Iterating through them involves "pointer chasing," which causes CPU cache misses (L1/L2 cache inefficiency).
 
-**Vectra-X uses a "Flat Layout":**
+**VectorCore uses a "Flat Layout":**
 ```cpp
 // GOOD: Spatial Locality
 std::vector<float> data_; 
@@ -100,7 +100,7 @@ The standard Euclidean distance formula is:
 $$ d = \sum (a_i - b_i)^2 $$
 
 In scalar code, this is one subtraction and one multiply per dimension (2 ops).
-In Vectra-X, we use intrinsics to process **8 floats at once**:
+In VectorCore, we use intrinsics to process **8 floats at once**:
 
 1.  `_mm256_loadu_ps`: Load 8 floats from memory (unaligned).
 2.  `_mm256_sub_ps`: Subtract 8 floats in parallel.
@@ -142,7 +142,7 @@ This pointer is passed directly to the C++ core. If the user passes a 1GB datase
 ## Folder Structure
 
 ```text
-Vectra-X/
+VectorCore/
 ├── include/
 │   ├── VectorStore.hpp      # Header: Class definitions & Flat Layout logic
 │   └── HNSWIndex.hpp        # Header: Graph definitions (Architecture reference)
@@ -191,8 +191,8 @@ The project enforces **C++17** (`cxx_std=17`). This ensures access to modern lan
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Start-Failing-Forward/Vectra-X.git
-cd Vectra-X
+git clone https://github.com/Start-Failing-Forward/VectorCore.git
+cd VectorCore
 
 # 2. Install via pip (triggers compilation)
 pip install .
@@ -204,11 +204,11 @@ pip install .
 
 ```python
 import numpy as np
-import vectrax
+import vectorcore
 
 # 1. Initialize the store (Dimension = 128)
 # Memory is allocated for the flat vector storage.
-store = vectrax.VectorStore(dim=128)
+store = vectorcore.VectorStore(dim=128)
 
 # 2. Generate Dummy Data
 # IMPORTANT: Data must be float32 to match C++ 'float' type.
@@ -236,7 +236,7 @@ for dist, vector_id in results:
 
 ## Future Roadmap
 
-While Vectra-X is efficient for datasets up to ~1 million vectors, scaling to billions requires algorithmic improvements:
+While VectorCore is efficient for datasets up to ~1 million vectors, scaling to billions requires algorithmic improvements:
 
 1.  **HNSW (Hierarchical Navigable Small World)**:
     *   *Current State*: `include/HNSWIndex.hpp` contains the node structure and architectural stub.
