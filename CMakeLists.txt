@@ -52,6 +52,14 @@ if(VECTORCORE_ENABLE_AVX2)
   endif()
 endif()
 
+# OpenMP parallelizes the brute-force scan. Without this the #pragma omp lines
+# are silently ignored and the CMake build runs the search single-threaded
+# (the pip/setup.py build already passes /openmp | -fopenmp).
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+  target_link_libraries(vectorcore_core PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
 # Python extension module
 pybind11_add_module(vectorcore
   src/pybind_module.cpp
@@ -62,9 +70,32 @@ target_link_libraries(vectorcore PRIVATE vectorcore_core)
 # Passed as a bare token; pybind_module.cpp stringifies it (cross-platform safe).
 target_compile_definitions(vectorcore PRIVATE VERSION_INFO=0.1.0)
 
-# Simple C++ smoke test (optional but helpful for quick validation)
+# ---- Tests ----
 enable_testing()
-add_executable(vectorcore_smoke_test tests/test_smoke.cpp)
 
+option(VECTORCORE_BUILD_TESTS "Build the GoogleTest unit-test suite" ON)
+
+# Minimal smoke test (no external dependencies).
+add_executable(vectorcore_smoke_test tests/test_smoke.cpp)
 target_link_libraries(vectorcore_smoke_test PRIVATE vectorcore_core)
 add_test(NAME vectorcore_smoke COMMAND vectorcore_smoke_test)
+
+if(VECTORCORE_BUILD_TESTS)
+  FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.14.0
+  )
+  # Windows: make GoogleTest use the same shared CRT as the rest of the build.
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+
+  add_executable(vectorcore_unit_tests
+    tests/test_distance.cpp
+    tests/test_bruteforce.cpp
+  )
+  target_link_libraries(vectorcore_unit_tests PRIVATE vectorcore_core GTest::gtest_main)
+
+  include(GoogleTest)
+  gtest_discover_tests(vectorcore_unit_tests)
+endif()

@@ -38,6 +38,12 @@ out/
 .vscode/
 *.code-workspace
 
+# Benchmark datasets (downloaded, large)
+*.fvecs
+*.ivecs
+*.bvecs
+benchmark/data/
+
 # OS
 .DS_Store
 Thumbs.db
