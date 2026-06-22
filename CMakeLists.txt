@@ -33,7 +33,6 @@ add_library(vectorcore_core
   src/bruteforce_index.cpp
   src/distance.cpp
   src/hnsw_index.cpp
-  src/VectorStore.cpp
 )
 
 target_include_directories(vectorcore_core
@@ -60,7 +59,8 @@ pybind11_add_module(vectorcore
 
 target_link_libraries(vectorcore PRIVATE vectorcore_core)
 
-target_compile_definitions(vectorcore PRIVATE VECTORCORE_VERSION=\"0.1.0\")
+# Passed as a bare token; pybind_module.cpp stringifies it (cross-platform safe).
+target_compile_definitions(vectorcore PRIVATE VERSION_INFO=0.1.0)
 
 # Simple C++ smoke test (optional but helpful for quick validation)
 enable_testing()

@@ -12,6 +12,10 @@ namespace vectorcore {
 enum class Metric : std::uint8_t {
   L2_SQUARED = 0,
   INNER_PRODUCT = 1,
+  // Cosine similarity. Implemented as inner product over L2-normalized vectors:
+  // both stored vectors (at add time) and the query (at search time) are scaled
+  // to unit length, so cos(a, b) == <a_hat, b_hat>. Larger score = closer.
+  COSINE = 2,
 };
 
 float l2_squared_scalar(const float* a, const float* b, std::size_t dim) noexcept;
@@ -24,5 +28,9 @@ float inner_product_avx2(const float* a, const float* b, std::size_t dim) noexce
 // Chooses the best available kernel at compile-time.
 float l2_squared(const float* a, const float* b, std::size_t dim) noexcept;
 float inner_product(const float* a, const float* b, std::size_t dim) noexcept;
+
+// Scales `v` to unit L2 length in place. A zero vector is left untouched
+// (its direction is undefined; cosine against it is treated as 0).
+void l2_normalize_inplace(float* v, std::size_t dim) noexcept;
 
 } // namespace vectorcore

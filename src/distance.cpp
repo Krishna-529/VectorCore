@@ -1,5 +1,6 @@
 #include "vectorcore/distance.h"
 
+#include <cmath>
 #include <immintrin.h>
 
 namespace vectorcore {
@@ -100,6 +101,18 @@ float inner_product(const float* a, const float* b, std::size_t dim) noexcept {
 #else
   return inner_product_scalar(a, b, dim);
 #endif
+}
+
+void l2_normalize_inplace(float* v, std::size_t dim) noexcept {
+  // Reuse the (possibly SIMD) inner-product kernel to compute the squared norm.
+  const float norm_sq = inner_product(v, v, dim);
+  if (norm_sq <= 0.0f) {
+    return; // zero vector: leave as-is
+  }
+  const float inv_norm = 1.0f / std::sqrt(norm_sq);
+  for (std::size_t i = 0; i < dim; ++i) {
+    v[i] *= inv_norm;
+  }
 }
 
 } // namespace vectorcore

@@ -28,6 +28,8 @@ float HnswIndex::score(const float* a, const float* b) const noexcept {
     case Metric::L2_SQUARED:
       return l2_squared(a, b, dim_);
     case Metric::INNER_PRODUCT:
+    case Metric::COSINE:
+      // Cosine vectors are pre-normalized on add and the query in search().
       return inner_product(a, b, dim_);
     default:
       return l2_squared(a, b, dim_);
@@ -51,6 +53,14 @@ void HnswIndex::add(const float* vectors, std::size_t n, const std::uint64_t* id
 
   // Insert vectors first.
   embeddings_.insert(embeddings_.end(), vectors, vectors + (n * dim_));
+
+  // For cosine, normalize stored vectors before the graph is built below, so
+  // edge selection uses the same (cosine) geometry as search.
+  if (metric_ == Metric::COSINE) {
+    for (std::size_t i = 0; i < n; ++i) {
+      l2_normalize_inplace(embeddings_.data() + ((old_size + i) * dim_), dim_);
+    }
+  }
 
   if (ids) {
     ids_.insert(ids_.end(), ids, ids + n);
@@ -128,6 +138,14 @@ void HnswIndex::search(const float* query, std::size_t k, std::uint64_t* out_ids
       out_scores[i] = std::numeric_limits<float>::infinity();
     }
     return;
+  }
+
+  // For cosine, normalize the query once into a local buffer.
+  std::vector<float> query_norm;
+  if (metric_ == Metric::COSINE) {
+    query_norm.assign(query, query + dim_);
+    l2_normalize_inplace(query_norm.data(), dim_);
+    query = query_norm.data();
   }
 
   // Greedy best-first exploration from entrypoint 0.

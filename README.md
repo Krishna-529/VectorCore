@@ -1,39 +1,42 @@
-# VectorCore: High-Performance C++ Vector Search Engine with Python Bindings
+# VectorCore (Vectra-X): High-Performance C++ Vector Search Engine with Python Bindings
 
 **VectorCore** is an embedded, high-performance vector search engine designed to demonstrate advanced C++ optimization techniques, SIMD acceleration, and efficient foreign function interfaces (FFI) with Python.
 
-Designed as an educational yet functional prototype, it addresses the **"Two-Language Problem"** in high-performance computing (HPC): utilizing Python for its ease of use and ecosystem (NumPy, PyTorch) while leveraging C++ for the computationally intensive L2 distance calculations required by vector search.
+Designed as an educational yet functional prototype, it addresses the **"Two-Language Problem"** in high-performance computing (HPC): using Python for its ease of use and ecosystem (NumPy, PyTorch, sentence-transformers) while leveraging C++ for the computationally intensive distance calculations required by vector search.
 
-This project deliberately avoids high-level abstractions in the critical path, opting instead for **Data-Oriented Design**, **manual memory layouts**, and **processor-specific intrinsics** (AVX2).
+This project deliberately avoids high-level abstractions in the critical path, opting instead for **Data-Oriented Design**, **flat memory layouts**, and **processor-specific intrinsics** (AVX2 + FMA).
 
 ---
 
 ## 📚 Table of Contents
 1.  [Project Motivation](#project-motivation)
 2.  [High-Level Architecture](#high-level-architecture)
-3.  [Detailed Technical Implementation](#detailed-technical-implementation)
+3.  [Public API](#public-api)
+4.  [Detailed Technical Implementation](#detailed-technical-implementation)
     *   [Memory Model: The Flat Storage Strategy](#memory-model-the-flat-storage-strategy)
     *   [SIMD Acceleration: AVX2 Details](#simd-acceleration-avx2-details)
-    *   [Search Algorithm: Min-Heap k-NN](#search-algorithm-min-heap-k-nn)
-    *   [Python-C++ Bridge: Zero-Copy Protocol](#python-c-bridge-zero-copy-protocol)
-4.  [Folder Structure](#folder-structure)
-5.  [Build System & Environment](#build-system--environment)
-6.  [Installation & Usage](#installation--usage)
-7.  [Future Roadmap](#future-roadmap)
-8.  [License](#license)
+    *   [Distance Metrics](#distance-metrics)
+    *   [Search Algorithm: Bounded Top-k Heap](#search-algorithm-bounded-top-k-heap)
+    *   [Parallelism: OpenMP](#parallelism-openmp)
+    *   [Python–C++ Bridge: Zero-Copy Protocol](#pythonc-bridge-zero-copy-protocol)
+5.  [Folder Structure](#folder-structure)
+6.  [Build System & Environment](#build-system--environment)
+7.  [Installation & Usage](#installation--usage)
+8.  [Roadmap](#roadmap)
+9.  [License](#license)
 
 ---
 
 ## Project Motivation
 
-Modern AI applications rely heavily on vector embeddings (dense floating-point arrays representing text or images). Finding the "nearest" vector to a query is an $O(N \cdot D)$ operation, where $N$ is the dataset size and $D$ is the dimensionality.
+Modern AI applications rely heavily on vector embeddings (dense floating-point arrays representing text or images). Finding the "nearest" vector to a query is an $O(N \cdot D)$ operation for brute force, where $N$ is the dataset size and $D$ is the dimensionality.
 
-In pure Python, this is prohibitively slow. While libraries like Faiss exist, understanding *how* to build one requires mastering several distinct domains:
-1.  **Hardware-aware C++**: Understanding cache lines and SIMD registers.
-2.  **Compiler interactions**: How flags like `/arch:AVX2` or `-mfma` change code generation.
-3.  **Cross-language bindings**: Passing memory pointers safely between Python and C++.
+In pure Python this is prohibitively slow. While libraries like Faiss and hnswlib exist, understanding *how* to build one requires mastering several distinct domains:
+1.  **Hardware-aware C++**: cache lines and SIMD registers.
+2.  **Compiler interactions**: how flags like `/arch:AVX2` or `-mfma` change code generation.
+3.  **Cross-language bindings**: passing memory pointers safely between Python and C++.
 
-VectorCore is a clean-sheet implementation of these concepts, serving as a reference for building high-scale search infrastructure.
+VectorCore is a clean-sheet implementation of these concepts.
 
 ---
 
@@ -43,9 +46,9 @@ The system operates as a hybrid application: two languages, shared memory.
 
 ```mermaid
 graph TD
-    User[User / Python Script] -->|NumPy Array| Interface[Pybind11 Interface]
-    Interface -->|Zero-Copy Pointer| Engine[C++ Engine Core]
-    
+    User[User / Python Script] -->|NumPy float32 array| Interface[pybind11 Module: vectorcore]
+    Interface -->|Zero-Copy const float*| Engine[C++ Index]
+
     subgraph "Python Land"
         User
         Numpy[NumPy Memory Allocator]
@@ -53,202 +56,221 @@ graph TD
 
     subgraph "C++ Land"
         Interface
-        Store[VectorStore Class]
-        ALU[AVX2 Math Kernel]
-        Heap[Min-Priority Queue]
+        BF[BruteForceIndex]
+        HNSW[HnswIndex - partial]
+        Dist[AVX2 Distance Kernels]
     end
 
-    Numpy -.->|Raw Memory Read| Store
-    Store --> ALU
-    ALU --> Heap
-    Heap -->|Top-K Results| User
+    Numpy -.->|Raw Memory Read| BF
+    Numpy -.->|Raw Memory Read| HNSW
+    BF --> Dist
+    HNSW --> Dist
+    Dist -->|Top-K ids + scores| User
 ```
 
-1.  **Storage Layer**: A strictly typed, contiguous memory block managed by C++.
-2.  **Compute Layer**: An AVX2-optimized distance kernel that processes 8 dimensions per CPU cycle.
-3.  **Interface Layer**: A `pybind11` module that exposes the C++ class as a native Python object, `vectorcore.VectorStore`.
+1.  **Storage Layer**: a strictly typed, contiguous, 32-byte-aligned memory block managed by C++.
+2.  **Compute Layer**: AVX2-optimized distance kernels that process 8 dimensions per instruction.
+3.  **Interface Layer**: a `pybind11` module exposing the C++ indexes as native Python objects.
+
+A full architecture diagram is available in [`VectraX_Architecture.pdf`](VectraX_Architecture.pdf).
+
+---
+
+## Public API
+
+The compiled module is imported as `vectorcore`. It exposes two indexes and a `Metric` enum.
+
+| Class | Status | Search complexity | Use |
+| --- | --- | --- | --- |
+| `BruteForceIndex` | ✅ Complete, exact | $O(N \cdot D)$ | Ground-truth baseline, exact recall |
+| `HnswIndex` | ⚠️ Partial prototype | approximate | Graph-based ANN (single-layer so far — see [Roadmap](#roadmap)) |
+
+**Metrics** (passed as a string): `"l2"` (alias `"l2_squared"`), `"ip"` (alias `"inner_product"`), `"cosine"` (alias `"cos"`).
+For `l2`, smaller scores are closer. For `ip`/`cosine`, larger scores are closer. Cosine is implemented as inner product over L2-normalized vectors (normalization is applied automatically on `add` and `search`).
+
+```python
+BruteForceIndex(dim: int, metric: str = "l2")
+    .dim -> int
+    .size -> int
+    .add(x: np.ndarray[float32, (n, dim)], ids: np.ndarray[uint64, (n,)] | None = None)
+    .search(q: np.ndarray[float32, (dim,) | (m, dim)], k: int) -> (ids, scores)
+
+HnswIndex(dim: int, M: int = 16, metric: str = "l2")
+    # same .add / .search surface (single-vector queries)
+```
+
+> **dtype matters.** Inputs must be **float32** and C-contiguous; `ids` must be **uint64**. Python's native `float` is C++ `double` (64-bit), so always `.astype(np.float32)`. The bridge rejects mismatches rather than silently copying.
 
 ---
 
 ## Detailed Technical Implementation
 
 ### Memory Model: The Flat Storage Strategy
-**File:** `include/VectorStore.hpp`
+**Files:** `include/vectorcore/bruteforce_index.h`, `include/vectorcore/aligned_allocator.h`
 
-Most naive C++ implementations store vectors as a "Vector of Vectors":
+A naive implementation stores vectors as a "vector of vectors":
 ```cpp
-// BAD: Cache Thrashing
+// BAD: cache thrashing
 std::vector<std::vector<float>> data;
 ```
-This causes **heap fragmentation**. Each inner vector is allocated separately in memory. Iterating through them involves "pointer chasing," which causes CPU cache misses (L1/L2 cache inefficiency).
+Each inner vector is heap-allocated separately. Iterating involves pointer chasing and cache misses.
 
-**VectorCore uses a "Flat Layout":**
+VectorCore uses a **flat layout** in a single contiguous, 32-byte-aligned buffer:
 ```cpp
-// GOOD: Spatial Locality
-std::vector<float> data_; 
-// Access vector i at: data_.data() + (i * dim_)
+// GOOD: spatial locality
+std::vector<float, AlignedAllocator<float, 32>> embeddings_;
+// Access vector i at: embeddings_.data() + (i * dim_)
 ```
-*   **Why?** Modern CPUs fetch memory in **"Cache Lines"** (typically 64 bytes). By keeping data contiguous, a single cache line fetch loads 16 consecutive float values. When the SIMD kernel processes vector $i$, the pre-fetcher has likely already pulled vector $i+1$ into the L1 cache.
-*   **Result**: The bottleneck shifts from memory latency (waiting for RAM) to memory bandwidth (how fast bytes can move), which is a much higher ceiling.
+A single 64-byte cache line fetch brings in 16 consecutive floats; the prefetcher streams the next vector while the SIMD kernel works on the current one. The bottleneck shifts from memory *latency* to memory *bandwidth* (a much higher ceiling).
 
 ### SIMD Acceleration: AVX2 Details
-**File:** `src/VectorStore.cpp`
+**File:** `src/distance.cpp`
 
-We use **Intel AVX2 (Advanced Vector Extensions 2)** to parallelize the L2 distance calculation.
+The hot kernels use **Intel AVX2** to process **8 floats per instruction**:
 
-The standard Euclidean distance formula is:
-$$ d = \sum (a_i - b_i)^2 $$
+1.  `_mm256_loadu_ps` — load 8 floats (unaligned-safe).
+2.  `_mm256_sub_ps` — subtract 8 floats in parallel (L2).
+3.  `_mm256_fmadd_ps` — fused multiply-add: `(diff * diff) + accumulator` in one instruction.
 
-In scalar code, this is one subtraction and one multiply per dimension (2 ops).
-In VectorCore, we use intrinsics to process **8 floats at once**:
+A horizontal sum reduces the 8 lanes, and a scalar tail loop handles dimensions not divisible by 8. When AVX2 is unavailable, a 4×-unrolled scalar fallback is compiled in instead (`#if defined(__AVX2__)`).
 
-1.  `_mm256_loadu_ps`: Load 8 floats from memory (unaligned).
-2.  `_mm256_sub_ps`: Subtract 8 floats in parallel.
-3.  `_mm256_fmadd_ps`: "Fused Multiply-Add". Performs `(diff * diff) + accumulator` in a single CPU cycle.
+### Distance Metrics
+**File:** `src/distance.cpp`
 
-This theoretically offers an **8x speedup** over scalar processing, though in practice memory bandwidth limits the gain to around 4-6x.
+| Metric enum | Kernel | Semantics |
+| --- | --- | --- |
+| `L2_SQUARED` | `l2_squared` | squared Euclidean; smaller = closer |
+| `INNER_PRODUCT` | `inner_product` | dot product; larger = closer |
+| `COSINE` | `inner_product` over normalized vectors | cosine similarity in `[-1, 1]`; larger = closer |
 
-### Search Algorithm: Min-Heap k-NN
-**File:** `src/VectorStore.cpp` (`search` method)
+Cosine normalizes stored vectors at `add` time and the query at `search` time (`l2_normalize_inplace`), so `cos(a, b) == <â, b̂>` and the same fast inner-product kernel is reused.
 
-To find the top-$k$ nearest neighbors:
-1.  We iterate over *every* vector in the store (Brute Force).
-2.  We calculate the distance to the query.
-3.  We maintain a **Min-Priority Queue** of size $k$.
+### Search Algorithm: Bounded Top-k Heap
+**File:** `src/bruteforce_index.cpp` (`search`)
 
-**The Optimization Logic:**
-*   We use a `std::priority_queue` containing pairs of `(-distance, id)`.
-*   Why negative distance? The C++ `priority_queue` is a Max-Heap by default. By negating the distance, the "largest" value (which is conceptually the numerically smallest negative number, i.e., the closest neighbor) sinks to the bottom.
-*   The implementation uses a `GreaterKey` comparator (`>`) which turns the queue into a Min-Heap based on the first element (key).
-*   **Logic**: We push `(-distance, id)`. If size > $k$, we `pop()`. In a Min-Heap, `pop()` removes the *smallest* element (most negative distance = largest actual distance). This ensures we keep the closest neighbors.
+To find the top-$k$ nearest neighbors over all stored vectors:
+1.  Score every vector against the query.
+2.  Maintain a **size-k max-heap keyed by "badness"** (L2: `badness = distance`; IP/cosine: `badness = -similarity`, so "larger badness = worse" in all cases).
+3.  The heap top is the *worst* kept candidate, so replacing it is `O(log k)`. Total work is `O(N log k)` — no full sort of all `N`.
 
-### Python-C++ Bridge: Zero-Copy Protocol
-**File:** `src/main.cpp`
+Results are then ordered best-first and the user-facing score is recovered from the badness. If `k > N`, the tail is padded with `UINT64_MAX` / `+inf` sentinels.
 
-The Python binding is not just a wrapper; it contains logic to prevent memory copies.
+### Parallelism: OpenMP
+**File:** `src/bruteforce_index.cpp`
 
-When you call `store.add_vector(np_array)`, `pybind11` does not copy the array into a C++ `std::vector`. instead:
-1.  `py::buffer_info` requests the raw memory address of the NumPy array.
-2.  **Safety Checks**:
-    *   `ndim == 1`: Must be a flat vector.
-    *   `strides[0] == sizeof(float)`: Must be contiguous (no sliced arrays like `arr[::2]`).
-    *   `format`: Must be `float32` (standard C floats).
-3.  **Pointer Cast**: `float* ptr = static_cast<float*>(buf.ptr)`.
+The brute-force scan is parallelized with OpenMP: each thread keeps a **thread-local** size-k heap over a slice of the data (`#pragma omp for nowait`), then the locals are merged into the global top-k inside a `#pragma omp critical` section. This avoids contention on a shared heap in the hot loop.
 
-This pointer is passed directly to the C++ core. If the user passes a 1GB dataset, **0 bytes are copied** during the API call transition—only the internal storage logic decides if it needs to copy it (which it does, into `VectorStore::data_`).
+### Python–C++ Bridge: Zero-Copy Protocol
+**File:** `src/pybind_module.cpp`
+
+`store.add(np_array)` does **not** copy through an intermediate `std::vector`. Instead:
+1.  `py::buffer_info` requests the raw pointer + shape/strides of the NumPy array.
+2.  **Safety checks**: `ndim` (1 or 2), `shape[-1] == dim`, `format == float32`, and C-contiguous strides. (`itemsize` alone is insufficient — `int32` is also 4 bytes.)
+3.  The validated `const float*` is passed straight into the C++ index.
+
+0 bytes are copied *at the API boundary*. The index then copies the data **exactly once** into its internal flat storage (the "zero-copy" guarantee applies to the bridge, not to persistence).
 
 ---
 
 ## Folder Structure
 
 ```text
-VectorCore/
-├── include/
-│   ├── VectorStore.hpp      # Header: Class definitions & Flat Layout logic
-│   └── HNSWIndex.hpp        # Header: Graph definitions (Architecture reference)
+Vectra-X/
+├── include/vectorcore/
+│   ├── aligned_allocator.h    # 32-byte aligned allocator for std::vector
+│   ├── distance.h             # Metric enum + distance kernel declarations
+│   ├── bruteforce_index.h     # Exact index (flat storage)
+│   └── hnsw_index.h           # Graph index (partial)
 ├── src/
-│   ├── main.cpp             # Pybind11 Entry point & Buffer Protocol validation
-│   └── VectorStore.cpp      # Implementation: AVX2 Kernels & Heap Search
-├── setup.py                 # Build script (Compiler flag injection)
-├── pyproject.toml           # Python package metadata
-├── CMakeLists.txt           # (Optional) CMake configuration for standalone C++ builds
-└── README.md                # Documentation
+│   ├── distance.cpp           # AVX2 + scalar L2 / inner-product / normalize
+│   ├── bruteforce_index.cpp   # Exact kNN + OpenMP top-k
+│   ├── hnsw_index.cpp         # Graph build + greedy search (prototype)
+│   └── pybind_module.cpp      # pybind11 bindings (module: vectorcore)
+├── tests/
+│   └── test_smoke.cpp         # Minimal C++ smoke test
+├── setup.py                   # pip build (Pybind11Extension, flag injection)
+├── CMakeLists.txt             # Standalone C++ build + smoke test
+├── pyproject.toml             # Build-system metadata
+└── VectraX_Architecture.pdf   # Architecture diagram
 ```
 
 ---
 
 ## Build System & Environment
 
-The build system (`setup.py`) is intelligent and platform-aware.
+### Compiler Flags
+`setup.py` injects optimal flags per platform:
 
-### Compiler Flag Methodology
-Standard helper libraries don't always pick optimal flags for scientific computing. Our `setup.py` explicitly injects them:
+1.  **Windows (MSVC)**: `/O2 /arch:AVX2 /openmp`  *(MSVC has no `-O3`)*.
+2.  **Linux/macOS (GCC/Clang)**: `-O3 -mavx2 -mfma -fopenmp`.
 
-1.  **Windows (MSVC/Visual Studio 2022)**:
-    *   `/O2`: Maximize speed.
-    *   `/arch:AVX2`: Use Advanced Vector Extensions 2. *Note: MSVC does not use `-O3`.*
-    
-2.  **Linux/macOS (GCC/Clang)**:
-    *   `-O3`: Aggressive optimization.
-    *   `-mavx2`: Enable AVX2 instructions.
-    *   `-mfma`: Enable Fused Multiply-Add (crucial for dot products/L2 norms).
+The version string is injected via the `VERSION_INFO` macro (defined identically by `setup.py` and `CMakeLists.txt`) and stringified in `pybind_module.cpp`, so `vectorcore.__version__` works on both build paths.
 
-### Standard Compliance
-The project enforces **C++17** (`cxx_std=17`). This ensures access to modern language features while maintaining compatibility with most enterprise compilers.
+### Standard
+C++17 (`cxx_std=17`).
 
 ---
 
 ## Installation & Usage
 
 ### Prerequisites
-*   **Operating System**: Windows 10/11, Linux, or macOS.
-*   **Compiler**: 
-    *   Windows: Visual Studio Build Tools 2022 (with "Desktop development with C++").
-    *   Linux: `build-essential` (GCC 7+).
-*   **Python**: Version 3.8 or higher.
+*   **OS**: Windows 10/11, Linux, or macOS.
+*   **Compiler**: Windows — Visual Studio Build Tools 2022 ("Desktop development with C++"); Linux — `build-essential` (GCC 7+).
+*   **Python**: 3.8+, with `numpy`.
 
-### Installing from Source
-
+### Install from Source
 ```bash
-# 1. Clone the repository
-git clone https://github.com/Start-Failing-Forward/VectorCore.git
-cd VectorCore
-
-# 2. Install via pip (triggers compilation)
+git clone <repo-url>
+cd Vectra-X
 pip install .
 ```
-
-*Note: On Windows, ensure you run this from an environment where `cl.exe` is accessible, or rely on `pip` to find the Visual Studio Build Tools automatically.*
+*Windows: run from an environment where `cl.exe` is on PATH, or let pip locate the Build Tools.*
 
 ### Usage Example
-
 ```python
 import numpy as np
 import vectorcore
 
-# 1. Initialize the store (Dimension = 128)
-# Memory is allocated for the flat vector storage.
-store = vectorcore.VectorStore(dim=128)
+print(vectorcore.__version__)
 
-# 2. Generate Dummy Data
-# IMPORTANT: Data must be float32 to match C++ 'float' type.
-# Python 'float' is actually C++ 'double' (64-bit).
-vec_a = np.random.rand(128).astype(np.float32)
-vec_b = np.random.rand(128).astype(np.float32)
+# Exact, cosine-similarity index over 128-dim vectors.
+index = vectorcore.BruteForceIndex(dim=128, metric="cosine")
 
-# 3. Add Vectors
-# 'id' is an arbitrary integer identifier for the vector.
-store.add_vector(id=1, vec=vec_a)
-store.add_vector(id=2, vec=vec_b)
+# Data MUST be float32 and C-contiguous.
+x = np.random.rand(1000, 128).astype(np.float32)
+ids = np.arange(1000, dtype=np.uint64)
+index.add(x, ids)            # ids optional; defaults to 0..n-1
 
-print(f"Store size: {store.size}")
+print("size:", index.size)
 
-# 4. Search
-# We search for the nearest neighbor to 'vec_a' (which should be itself).
-# k=2 returns top 2 results.
-results = store.search(query=vec_a, k=2)
+# Single query (dim,) or batched (m, dim).
+q = x[0]
+out_ids, out_scores = index.search(q, k=5)
+for vid, score in zip(out_ids, out_scores):
+    print(f"id={vid}  score={score:.5f}")   # nearest is the query itself
+```
 
-for dist, vector_id in results:
-    print(f"ID: {vector_id}, Distance: {dist:.5f}")
+### Standalone C++ build / test
+```bash
+cmake -S . -B build_cmake -DCMAKE_BUILD_TYPE=Release
+cmake --build build_cmake
+ctest --test-dir build_cmake   # runs the smoke test
 ```
 
 ---
 
-## Future Roadmap
+## Roadmap
 
-While VectorCore is efficient for datasets up to ~1 million vectors, scaling to billions requires algorithmic improvements:
+VectorCore is being built out in measured stages (each gated by recall@k / QPS on a standard dataset). Current focus:
 
-1.  **HNSW (Hierarchical Navigable Small World)**:
-    *   *Current State*: `include/HNSWIndex.hpp` contains the node structure and architectural stub.
-    *   *Goal*: Implement the graph-based approximate search to reduce complexity from $O(N)$ to $O(\log N)$.
-2.  **Product Quantization (PQ)**:
-    *   *Current State*: Not implemented (Full precision float32 only).
-    *   *Goal*: Compress vectors from 512 bytes to 16-32 bytes using sub-space clustering, allowing billion-scale datasets to fit in RAM.
-3.  **Multithreading**:
-    *   *Goal*: Use OpenMP to parallelize the outer loop of the `search` function across multiple CPU cores.
+1.  **Real HNSW** — multi-layer probabilistic graph, `efConstruction`/`efSearch` beam search, and RNG heuristic neighbor pruning. *(Current `HnswIndex` is a single-layer prototype.)*
+2.  **Product Quantization (PQ)** — K-Means codebooks + asymmetric distance computation to compress vectors ~32× and scale to billion-vector datasets.
+3.  **Persistence** — `save` / `load` of vectors, graph, and codebooks (binary / mmap).
+4.  **Benchmark harness** — recall@k and QPS vs. brute-force ground truth on SIFT1M / GloVe.
+5.  **Visualization** — React + D3 dashboard animating the HNSW search path with live latency/recall metrics.
 
 ---
 
 ## License
 
-This project is open-source and available under the **MIT License**.
+Open-source under the **MIT License**.

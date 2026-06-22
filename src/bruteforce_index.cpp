@@ -7,10 +7,10 @@ namespace vectorcore {
 
 namespace {
 
-// For L2 we want *smaller* scores; for inner product we want *larger* scores.
-// To reuse a single heap structure we store a "badness" value:
+// For L2 we want *smaller* scores; for inner product / cosine we want *larger*
+// scores. To reuse a single heap structure we store a "badness" value:
 // - L2: badness = distance (larger is worse)
-// - IP: badness = -similarity (larger is worse)
+// - IP / cosine: badness = -similarity (larger is worse)
 inline float badness_from_score(Metric metric, float score) noexcept {
   return (metric == Metric::L2_SQUARED) ? score : -score;
 }
@@ -41,6 +41,13 @@ void BruteForceIndex::add(const float* vectors, std::size_t n, const std::uint64
   // Append the new vectors in a single flat block.
   embeddings_.insert(embeddings_.end(), vectors, vectors + (n * dim_));
 
+  // For cosine, store unit-length vectors so the inner product == cosine.
+  if (metric_ == Metric::COSINE) {
+    for (std::size_t i = 0; i < n; ++i) {
+      l2_normalize_inplace(embeddings_.data() + ((old_size + i) * dim_), dim_);
+    }
+  }
+
   if (ids) {
     ids_.insert(ids_.end(), ids, ids + n);
   } else {
@@ -62,6 +69,9 @@ float BruteForceIndex::score(const float* a, const float* b) const noexcept {
     case Metric::L2_SQUARED:
       return l2_squared(a, b, dim_);
     case Metric::INNER_PRODUCT:
+    case Metric::COSINE:
+      // Cosine vectors are pre-normalized (on add) and the query is normalized
+      // in search(), so the raw inner product equals the cosine similarity.
       return inner_product(a, b, dim_);
     default:
       return l2_squared(a, b, dim_);
@@ -79,24 +89,59 @@ void BruteForceIndex::search(const float* query, std::size_t k, std::uint64_t* o
     return;
   }
 
+  // For cosine, normalize the query once into a local buffer and point at it.
+  std::vector<float> query_norm;
+  if (metric_ == Metric::COSINE) {
+    query_norm.assign(query, query + dim_);
+    l2_normalize_inplace(query_norm.data(), dim_);
+    query = query_norm.data();
+  }
+
   const std::size_t kk = std::min(k, size_);
 
   // Max-heap of current best results by "badness".
   // top() is the worst among the kept candidates, which makes replacement O(log k).
   using Item = std::pair<float, std::uint64_t>; // (badness, id)
   auto worse = [](const Item& a, const Item& b) { return a.first < b.first; };
-  std::priority_queue<Item, std::vector<Item>, decltype(worse)> heap(worse);
+  using MaxHeap = std::priority_queue<Item, std::vector<Item>, decltype(worse)>;
 
-  for (std::size_t i = 0; i < size_; ++i) {
-    const float* vec = embeddings_.data() + (i * dim_);
-    const float s = score(query, vec);
-    const float b = badness_from_score(metric_, s);
+  MaxHeap global_heap(worse);
 
-    if (heap.size() < kk) {
-      heap.emplace(b, ids_[i]);
-    } else if (b < heap.top().first) {
-      heap.pop();
-      heap.emplace(b, ids_[i]);
+  // MSVC ships OpenMP 2.0, which requires a *signed* loop index. Use a signed
+  // type for the parallel-for counter and cast inside the body.
+  const std::ptrdiff_t n_signed = static_cast<std::ptrdiff_t>(size_);
+
+  #pragma omp parallel
+  {
+    MaxHeap local_heap(worse);
+
+    #pragma omp for nowait
+    for (std::ptrdiff_t i = 0; i < n_signed; ++i) {
+      const std::size_t idx = static_cast<std::size_t>(i);
+      const float* vec = embeddings_.data() + (idx * dim_);
+      const float s = score(query, vec);
+      const float b = badness_from_score(metric_, s);
+
+      if (local_heap.size() < kk) {
+        local_heap.emplace(b, ids_[idx]);
+      } else if (b < local_heap.top().first) {
+        local_heap.pop();
+        local_heap.emplace(b, ids_[idx]);
+      }
+    }
+
+    #pragma omp critical
+    {
+      while (!local_heap.empty()) {
+        const auto& item = local_heap.top();
+        if (global_heap.size() < kk) {
+          global_heap.push(item);
+        } else if (item.first < global_heap.top().first) {
+          global_heap.pop();
+          global_heap.push(item);
+        }
+        local_heap.pop();
+      }
     }
   }
 
@@ -104,9 +149,9 @@ void BruteForceIndex::search(const float* query, std::size_t k, std::uint64_t* o
   // For L2: best has smallest distance; for IP: best has largest similarity.
   std::vector<Item> tmp;
   tmp.reserve(kk);
-  while (!heap.empty()) {
-    tmp.push_back(heap.top());
-    heap.pop();
+  while (!global_heap.empty()) {
+    tmp.push_back(global_heap.top());
+    global_heap.pop();
   }
   std::reverse(tmp.begin(), tmp.end());
 

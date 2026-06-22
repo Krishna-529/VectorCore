@@ -8,6 +8,10 @@ from setuptools import setup
 # compiler flags for Python extension modules.
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 
+# Single source of truth for the version. Passed to C++ via the VERSION_INFO
+# macro and stringified there (see pybind_module.cpp).
+VERSION = "0.1.0"
+
 
 def compile_args():
     """Return compiler args for high-performance builds.
@@ -23,36 +27,45 @@ def compile_args():
 
     if sys.platform.startswith("win"):
         # MSVC flags
-        return ["/O2", "/arch:AVX2"]
+        return ["/O2", "/arch:AVX2", "/openmp"]
 
     # GCC/Clang flags
     return [
         "-O3",
         "-mavx2",
         "-mfma",
+        "-fopenmp",
     ]
+
+def link_args():
+    if sys.platform.startswith("win"):
+        return []
+    return ["-fopenmp"]
 
 
 ext_modules = [
     Pybind11Extension(
         "vectorcore",  # module name: import vectorcore
         [
-            "src/main.cpp",
-            "src/VectorStore.cpp",
+            "src/pybind_module.cpp",
+            "src/bruteforce_index.cpp",
+            "src/distance.cpp",
+            "src/hnsw_index.cpp",
         ],
         include_dirs=[
             "include",
-            "src",
         ],
         cxx_std=17,
+        define_macros=[("VERSION_INFO", VERSION)],
         extra_compile_args=compile_args(),
+        extra_link_args=link_args(),
     )
 ]
 
 
 setup(
     name="vectorcore",
-    version="0.0.0",
+    version=VERSION,
     description="VectorCore (prototype) - pybind11 extension",
     ext_modules=ext_modules,
     cmdclass={"build_ext": build_ext},

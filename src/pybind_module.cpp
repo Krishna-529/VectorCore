@@ -9,6 +9,12 @@
 #include "vectorcore/bruteforce_index.h"
 #include "vectorcore/hnsw_index.h"
 
+// Stringify the VERSION_INFO token injected by the build system (setup.py /
+// CMake). Passing a bare token and stringifying here avoids cross-platform
+// quoting headaches with MSVC vs GCC/Clang command lines.
+#define VECTORCORE_STRINGIFY(x) #x
+#define VECTORCORE_TOSTRING(x) VECTORCORE_STRINGIFY(x)
+
 namespace py = pybind11;
 
 namespace {
@@ -90,6 +96,9 @@ vectorcore::Metric parse_metric(const std::string& m) {
   if (m == "ip" || m == "inner_product") {
     return vectorcore::Metric::INNER_PRODUCT;
   }
+  if (m == "cosine" || m == "cos") {
+    return vectorcore::Metric::COSINE;
+  }
   throw std::invalid_argument("Unknown metric: " + m);
 }
 
@@ -97,11 +106,16 @@ vectorcore::Metric parse_metric(const std::string& m) {
 
 PYBIND11_MODULE(vectorcore, m) {
   m.doc() = "VectorCore: high-performance vector search engine (C++17 + pybind11)";
-  m.attr("__version__") = vectorcore_VERSION;
+#ifdef VERSION_INFO
+  m.attr("__version__") = VECTORCORE_TOSTRING(VERSION_INFO);
+#else
+  m.attr("__version__") = "dev";
+#endif
 
   py::enum_<vectorcore::Metric>(m, "Metric")
       .value("L2_SQUARED", vectorcore::Metric::L2_SQUARED)
-      .value("INNER_PRODUCT", vectorcore::Metric::INNER_PRODUCT);
+      .value("INNER_PRODUCT", vectorcore::Metric::INNER_PRODUCT)
+      .value("COSINE", vectorcore::Metric::COSINE);
 
   py::class_<vectorcore::BruteForceIndex>(m, "BruteForceIndex")
       .def(py::init([](std::size_t dim, const std::string& metric) {

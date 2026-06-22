@@ -30,6 +30,7 @@ MANIFEST
 *.dylib
 *.exe
 build_ninja/
+build_cmake/
 _installers/
 out/
 
