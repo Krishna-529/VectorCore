@@ -52,6 +52,8 @@ def main() -> None:
     p.add_argument("--dim", type=int, default=128)
     p.add_argument("--queries", type=int, default=1000)
     p.add_argument("--k", type=int, default=10)
+    p.add_argument("--max-queries", type=int, default=None,
+                   help="limit number of queries (subset) for faster runs")
     p.add_argument("--repeats", type=int, default=3)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--hnsw", action="store_true", help="also benchmark HnswIndex (prototype)")
@@ -65,6 +67,11 @@ def main() -> None:
     else:
         dataset = make_synthetic(args.n, args.dim, args.queries, args.metric,
                                  k=args.k, seed=args.seed)
+
+    if args.max_queries is not None and args.max_queries < dataset.n_queries:
+        dataset.queries = dataset.queries[:args.max_queries]
+        dataset.ground_truth = dataset.ground_truth[:args.max_queries]
+
     print(f"dataset: {dataset.name}  metric={dataset.metric}  "
           f"queries={dataset.n_queries}  k={args.k}\n")
 
