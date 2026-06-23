@@ -2,9 +2,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <limits>
 #include <queue>
 #include <stdexcept>
+
+#include "vectorcore/io.h"
 
 namespace vectorcore {
 
@@ -340,6 +343,92 @@ void HnswIndex::search(const float* query, std::size_t k, std::uint64_t* out_ids
     out_scores[i] = (metric_ == Metric::L2_SQUARED) ? w[i].first : -w[i].first;
   }
   pad_from(kk);
+}
+
+namespace {
+constexpr char kHnswMagic[5] = "VCHN";
+constexpr std::uint32_t kHnswVersion = 1;
+}  // namespace
+
+void HnswIndex::save(const std::string& path) const {
+  std::ofstream os(path, std::ios::binary);
+  if (!os) {
+    throw std::runtime_error("HnswIndex::save: cannot open " + path);
+  }
+  io::write_magic(os, kHnswMagic);
+  io::write_pod(os, kHnswVersion);
+
+  io::write_pod(os, static_cast<std::uint64_t>(dim_));
+  io::write_pod(os, static_cast<std::uint64_t>(M_));
+  io::write_pod(os, static_cast<std::uint64_t>(M_max0_));
+  io::write_pod(os, static_cast<std::uint64_t>(ef_construction_));
+  io::write_pod(os, static_cast<std::uint64_t>(ef_search_));
+  io::write_pod(os, static_cast<std::uint8_t>(metric_));
+  io::write_pod(os, mL_);
+  io::write_pod(os, static_cast<std::int32_t>(max_level_));
+  io::write_pod(os, entry_point_);
+  io::write_pod(os, static_cast<std::uint64_t>(size_));
+
+  io::write_pod_vector(os, embeddings_);
+  io::write_pod_vector(os, ids_);
+  io::write_pod_vector(os, node_level_);
+
+  // Nested adjacency: [uint64 nodes]{ [uint64 layers]{ pod_vector<neighbors> } }
+  io::write_pod(os, static_cast<std::uint64_t>(links_.size()));
+  for (const auto& per_node : links_) {
+    io::write_pod(os, static_cast<std::uint64_t>(per_node.size()));
+    for (const auto& layer : per_node) {
+      io::write_pod_vector(os, layer);
+    }
+  }
+}
+
+HnswIndex HnswIndex::load(const std::string& path) {
+  std::ifstream is(path, std::ios::binary);
+  if (!is) {
+    throw std::runtime_error("HnswIndex::load: cannot open " + path);
+  }
+  io::expect_magic(is, kHnswMagic);
+  if (io::read_pod<std::uint32_t>(is) != kHnswVersion) {
+    throw std::runtime_error("HnswIndex::load: unsupported format version");
+  }
+
+  const auto dim = static_cast<std::size_t>(io::read_pod<std::uint64_t>(is));
+  const auto M = static_cast<std::size_t>(io::read_pod<std::uint64_t>(is));
+  const auto m_max0 = static_cast<std::size_t>(io::read_pod<std::uint64_t>(is));
+  const auto ef_c = static_cast<std::size_t>(io::read_pod<std::uint64_t>(is));
+  const auto ef_s = static_cast<std::size_t>(io::read_pod<std::uint64_t>(is));
+  const auto metric = static_cast<Metric>(io::read_pod<std::uint8_t>(is));
+  const double mL = io::read_pod<double>(is);
+  const int max_level = io::read_pod<std::int32_t>(is);
+  const std::uint32_t entry = io::read_pod<std::uint32_t>(is);
+  const auto size = static_cast<std::size_t>(io::read_pod<std::uint64_t>(is));
+
+  HnswIndex idx(dim, M, metric, ef_c, /*seed=*/100);
+  idx.M_max0_ = m_max0;
+  idx.ef_search_ = ef_s;
+  idx.mL_ = mL;
+  idx.max_level_ = max_level;
+  idx.entry_point_ = entry;
+  idx.size_ = size;
+
+  io::read_pod_vector(is, idx.embeddings_);
+  io::read_pod_vector(is, idx.ids_);
+  io::read_pod_vector(is, idx.node_level_);
+
+  const auto nodes = static_cast<std::size_t>(io::read_pod<std::uint64_t>(is));
+  idx.links_.resize(nodes);
+  for (std::size_t i = 0; i < nodes; ++i) {
+    const auto layers = static_cast<std::size_t>(io::read_pod<std::uint64_t>(is));
+    idx.links_[i].resize(layers);
+    for (std::size_t l = 0; l < layers; ++l) {
+      io::read_pod_vector(is, idx.links_[i][l]);
+    }
+  }
+
+  idx.visited_.assign(size, 0);
+  idx.visit_stamp_ = 0;
+  return idx;
 }
 
 }  // namespace vectorcore

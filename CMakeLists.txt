@@ -33,6 +33,7 @@ add_library(vectorcore_core
   src/bruteforce_index.cpp
   src/distance.cpp
   src/hnsw_index.cpp
+  src/pq_index.cpp
 )
 
 target_include_directories(vectorcore_core
@@ -94,6 +95,8 @@ if(VECTORCORE_BUILD_TESTS)
     tests/test_distance.cpp
     tests/test_bruteforce.cpp
     tests/test_hnsw.cpp
+    tests/test_pq.cpp
+    tests/test_io.cpp
   )
   target_link_libraries(vectorcore_unit_tests PRIVATE vectorcore_core GTest::gtest_main)
 

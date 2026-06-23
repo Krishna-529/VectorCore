@@ -255,6 +255,14 @@ for vid, score in zip(out_ids, out_scores):
     print(f"id={vid}  score={score:.5f}")   # nearest is the query itself
 ```
 
+### Persistence
+Every index serializes to a single binary file and reloads with identical
+search behavior (same-architecture portable):
+```python
+index.save("my_index.bin")
+index = vectorcore.HnswIndex.load("my_index.bin")   # or BruteForceIndex / PQIndex
+```
+
 ### Semantic search / RAG demo
 [`examples/rag_demo.py`](examples/rag_demo.py) shows the end-to-end retrieval
 pipeline: text → `sentence-transformers` embeddings → `HnswIndex` (cosine) →
@@ -282,8 +290,8 @@ VectorCore is being built out in measured stages (each gated by recall@k / QPS o
 - [x] **Test + benchmark infrastructure** — GoogleTest suite + reusable Python harness (recall@k / QPS), validated on SIFT1M.
 - [x] **Real HNSW** — multi-layer probabilistic graph, `efConstruction`/`efSearch` beam search, RNG heuristic neighbor pruning. *(recall@10 = 0.966 @ ~97× brute force on SIFT1M.)*
 - [x] **Semantic search demo** — `sentence-transformers` → `HnswIndex` (cosine) RAG retrieval ([examples/rag_demo.py](examples/rag_demo.py)); batched `(m, dim)` query support.
-- [ ] **Product Quantization (PQ)** — K-Means codebooks + asymmetric distance computation to compress vectors ~32× and scale to billion-vector datasets.
-- [ ] **Persistence** — `save` / `load` of vectors, graph, and codebooks (binary / mmap).
+- [x] **Product Quantization (PQ)** — per-subspace K-Means (k-means++) + uint8 codes + asymmetric distance computation ([PQIndex](include/vectorcore/pq_index.h)). SIFT1M tradeoff: m=64 → recall@10 0.90 @ 8×, m=32 → 0.72 @ 16×, m=16 → 0.54 @ 32×. Sweep: `python -m benchmark.pq_sweep`. *(Re-ranking / OPQ to push recall at high compression is a future extension.)*
+- [x] **Persistence** — binary `save(path)` / `load(path)` for all three indexes ([io.h](include/vectorcore/io.h)); verified byte-identical search results across a fresh process.
 - [ ] **Visualization** — React + D3 dashboard animating the HNSW search path with live latency/recall metrics.
 
 Known limitation: HNSW graph construction is currently single-threaded (~21 min for SIFT1M's 1M inserts). Parallel/batched construction is a future optimization.

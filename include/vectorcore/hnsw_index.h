@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <random>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -43,6 +44,12 @@ public:
 
   void add(const float* vectors, std::size_t n, const std::uint64_t* ids = nullptr);
   void search(const float* query, std::size_t k, std::uint64_t* out_ids, float* out_scores) const;
+
+  // Binary persistence (same-architecture portable). Serializes the full graph
+  // (vectors, ids, levels, adjacency, entry point); the RNG is reseeded on load,
+  // so search results round-trip exactly but later inserts won't be bit-identical.
+  void save(const std::string& path) const;
+  static HnswIndex load(const std::string& path);
 
 private:
   using Candidate = std::pair<float, std::uint32_t>;  // (badness, node index)

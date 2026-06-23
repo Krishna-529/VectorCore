@@ -51,6 +51,7 @@ ext_modules = [
             "src/bruteforce_index.cpp",
             "src/distance.cpp",
             "src/hnsw_index.cpp",
+            "src/pq_index.cpp",
         ],
         include_dirs=[
             "include",

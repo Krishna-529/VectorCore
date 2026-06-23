@@ -8,6 +8,7 @@
 
 #include "vectorcore/bruteforce_index.h"
 #include "vectorcore/hnsw_index.h"
+#include "vectorcore/pq_index.h"
 
 // Stringify the VERSION_INFO token injected by the build system (setup.py /
 // CMake). Passing a bare token and stringifying here avoids cross-platform
@@ -195,6 +196,8 @@ PYBIND11_MODULE(vectorcore, m) {
 
         throw std::invalid_argument("q must be 1D (dim,) or 2D (m, dim)");
       }, py::arg("q"), py::arg("k"))
+      .def("save", &vectorcore::BruteForceIndex::save, py::arg("path"))
+      .def_static("load", &vectorcore::BruteForceIndex::load, py::arg("path"))
       ;
 
   py::class_<vectorcore::HnswIndex>(m, "HnswIndex")
@@ -272,5 +275,85 @@ PYBIND11_MODULE(vectorcore, m) {
 
         throw std::invalid_argument("q must be 1D (dim,) or 2D (m, dim)");
       }, py::arg("q"), py::arg("k"))
+      .def("save", &vectorcore::HnswIndex::save, py::arg("path"))
+      .def_static("load", &vectorcore::HnswIndex::load, py::arg("path"))
+      ;
+
+  py::class_<vectorcore::PQIndex>(m, "PQIndex")
+      .def(py::init([](std::size_t dim, std::size_t m_sub, const std::string& metric,
+                       std::size_t nbits, std::uint64_t seed) {
+             return vectorcore::PQIndex(dim, m_sub, parse_metric(metric), nbits, seed);
+           }),
+           py::arg("dim"), py::arg("m"), py::arg("metric") = "l2",
+           py::arg("nbits") = 8, py::arg("seed") = 100)
+      .def_property_readonly("dim", &vectorcore::PQIndex::dim)
+      .def_property_readonly("size", &vectorcore::PQIndex::size)
+      .def_property_readonly("m", &vectorcore::PQIndex::m)
+      .def_property_readonly("ksub", &vectorcore::PQIndex::ksub)
+      .def_property_readonly("code_size", &vectorcore::PQIndex::code_size)
+      .def_property_readonly("is_trained", &vectorcore::PQIndex::is_trained)
+      .def("train", [](vectorcore::PQIndex& self, const py::array& x, std::size_t iters) {
+        auto view = as_float32_matrix_view(x, self.dim());
+        self.train(view.data, view.rows, iters);
+      }, py::arg("x"), py::arg("iters") = 25)
+      .def("add", [](vectorcore::PQIndex& self, const py::array& x, py::object ids_obj) {
+        auto view = as_float32_matrix_view(x, self.dim());
+
+        const std::uint64_t* ids_ptr = nullptr;
+        if (!ids_obj.is_none()) {
+          py::array ids_arr = py::cast<py::array>(ids_obj);
+          py::buffer_info ids_info = ids_arr.request();
+
+          if (ids_info.ndim != 1) {
+            throw std::invalid_argument("ids must be a 1D array");
+          }
+          if (static_cast<std::size_t>(ids_info.shape[0]) != view.rows) {
+            throw std::invalid_argument("ids length must match x.shape[0]");
+          }
+          if (ids_info.itemsize != sizeof(std::uint64_t) ||
+              ids_info.format != py::format_descriptor<std::uint64_t>::format()) {
+            throw std::invalid_argument("ids must be uint64");
+          }
+          if (ids_info.strides[0] != static_cast<py::ssize_t>(sizeof(std::uint64_t))) {
+            throw std::invalid_argument("ids must be contiguous");
+          }
+          ids_ptr = static_cast<const std::uint64_t*>(ids_info.ptr);
+        }
+
+        self.add(view.data, view.rows, ids_ptr);
+      }, py::arg("x"), py::arg("ids") = py::none())
+      .def("search", [](const vectorcore::PQIndex& self, const py::array& q, std::size_t k) {
+        py::buffer_info info = q.request();
+        if (info.itemsize != sizeof(float) || info.format != py::format_descriptor<float>::format()) {
+          throw std::invalid_argument("Expected float32 queries");
+        }
+
+        if (info.ndim == 1) {
+          auto v = as_float32_vector_view(q, self.dim());
+          py::array_t<std::uint64_t> out_ids(k);
+          py::array_t<float> out_scores(k);
+          self.search(v.data, k,
+                      static_cast<std::uint64_t*>(out_ids.request().ptr),
+                      static_cast<float*>(out_scores.request().ptr));
+          return py::make_tuple(out_ids, out_scores);
+        }
+
+        if (info.ndim == 2) {
+          auto mat = as_float32_matrix_view(q, self.dim());
+          const std::size_t m_queries = mat.rows;
+          py::array_t<std::uint64_t> out_ids({m_queries, k});
+          py::array_t<float> out_scores({m_queries, k});
+          auto* ids_ptr = static_cast<std::uint64_t*>(out_ids.request().ptr);
+          auto* sc_ptr = static_cast<float*>(out_scores.request().ptr);
+          for (std::size_t i = 0; i < m_queries; ++i) {
+            self.search(mat.data + (i * self.dim()), k, ids_ptr + (i * k), sc_ptr + (i * k));
+          }
+          return py::make_tuple(out_ids, out_scores);
+        }
+
+        throw std::invalid_argument("q must be 1D (dim,) or 2D (m, dim)");
+      }, py::arg("q"), py::arg("k"))
+      .def("save", &vectorcore::PQIndex::save, py::arg("path"))
+      .def_static("load", &vectorcore::PQIndex::load, py::arg("path"))
       ;
 }

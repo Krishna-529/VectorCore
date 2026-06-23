@@ -5,6 +5,7 @@
 #include <limits>
 #include <queue>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -41,6 +42,10 @@ public:
   // kNN search for a single query vector.
   // Output arrays must have capacity >= k.
   void search(const float* query, std::size_t k, std::uint64_t* out_ids, float* out_scores) const;
+
+  // Binary persistence (same-architecture portable).
+  void save(const std::string& path) const;
+  static BruteForceIndex load(const std::string& path);
 
 private:
   std::size_t dim_ = 0;

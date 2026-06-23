@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <cstring>
+#include <fstream>
+
+#include "vectorcore/io.h"
 
 namespace vectorcore {
 
@@ -167,6 +170,46 @@ void BruteForceIndex::search(const float* query, std::size_t k, std::uint64_t* o
     out_ids[i] = std::numeric_limits<std::uint64_t>::max();
     out_scores[i] = std::numeric_limits<float>::infinity();
   }
+}
+
+namespace {
+constexpr char kBruteForceMagic[5] = "VCBF";
+constexpr std::uint32_t kBruteForceVersion = 1;
+}  // namespace
+
+void BruteForceIndex::save(const std::string& path) const {
+  std::ofstream os(path, std::ios::binary);
+  if (!os) {
+    throw std::runtime_error("BruteForceIndex::save: cannot open " + path);
+  }
+  io::write_magic(os, kBruteForceMagic);
+  io::write_pod(os, kBruteForceVersion);
+  io::write_pod(os, static_cast<std::uint64_t>(dim_));
+  io::write_pod(os, static_cast<std::uint8_t>(metric_));
+  io::write_pod_vector(os, embeddings_);
+  io::write_pod_vector(os, ids_);
+}
+
+BruteForceIndex BruteForceIndex::load(const std::string& path) {
+  std::ifstream is(path, std::ios::binary);
+  if (!is) {
+    throw std::runtime_error("BruteForceIndex::load: cannot open " + path);
+  }
+  io::expect_magic(is, kBruteForceMagic);
+  if (io::read_pod<std::uint32_t>(is) != kBruteForceVersion) {
+    throw std::runtime_error("BruteForceIndex::load: unsupported format version");
+  }
+  const auto dim = static_cast<std::size_t>(io::read_pod<std::uint64_t>(is));
+  const auto metric = static_cast<Metric>(io::read_pod<std::uint8_t>(is));
+
+  BruteForceIndex idx(dim, metric);
+  io::read_pod_vector(is, idx.embeddings_);
+  io::read_pod_vector(is, idx.ids_);
+  idx.size_ = idx.ids_.size();
+  if (idx.embeddings_.size() != idx.size_ * dim) {
+    throw std::runtime_error("BruteForceIndex::load: corrupt file (size mismatch)");
+  }
+  return idx;
 }
 
 } // namespace vectorcore
