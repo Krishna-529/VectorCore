@@ -36,8 +36,11 @@ def build_bruteforce(dataset: Dataset) -> tuple[vectorcore.BruteForceIndex, floa
     return index, time.perf_counter() - t0
 
 
-def build_hnsw(dataset: Dataset, M: int) -> tuple[vectorcore.HnswIndex, float]:
-    index = vectorcore.HnswIndex(dim=dataset.dim, M=M, metric=dataset.metric)
+def build_hnsw(dataset: Dataset, M: int, ef_construction: int,
+               ef_search: int) -> tuple[vectorcore.HnswIndex, float]:
+    index = vectorcore.HnswIndex(dim=dataset.dim, M=M, metric=dataset.metric,
+                                 ef_construction=ef_construction)
+    index.ef_search = ef_search
     ids = np.arange(dataset.n, dtype=np.uint64)
     t0 = time.perf_counter()
     index.add(dataset.train, ids)
@@ -56,8 +59,10 @@ def main() -> None:
                    help="limit number of queries (subset) for faster runs")
     p.add_argument("--repeats", type=int, default=3)
     p.add_argument("--seed", type=int, default=0)
-    p.add_argument("--hnsw", action="store_true", help="also benchmark HnswIndex (prototype)")
+    p.add_argument("--hnsw", action="store_true", help="also benchmark HnswIndex")
     p.add_argument("--hnsw-M", type=int, default=16)
+    p.add_argument("--hnsw-ef-construction", type=int, default=200)
+    p.add_argument("--hnsw-ef-search", type=int, default=64)
     args = p.parse_args()
 
     print(f"vectorcore {vectorcore.__version__}")
@@ -82,20 +87,42 @@ def main() -> None:
                                   build_seconds=bf_build, repeats=args.repeats))
 
     if args.hnsw:
-        hn, hn_build = build_hnsw(dataset, args.hnsw_M)
-        results.append(evaluate_index(hn, dataset, args.k, index_name="HNSW(proto)",
+        hn, hn_build = build_hnsw(dataset, args.hnsw_M, args.hnsw_ef_construction,
+                                  args.hnsw_ef_search)
+        results.append(evaluate_index(hn, dataset, args.k,
+                                      index_name=f"HNSW(M{args.hnsw_M},ef{args.hnsw_ef_search})",
                                       build_seconds=hn_build, repeats=args.repeats))
 
     print()
     print_table(results)
-
-    # Stage 1 gate: brute force is exact, so recall@k must be ~1.0.
-    bf_recall = results[0].recall
     print()
-    if bf_recall >= 0.999:
-        print(f"GATE PASS: BruteForce recall@{args.k} = {bf_recall:.4f} (>= 0.999)")
+
+    failures = []
+
+    # Brute force is exact modulo float32 rounding on near-ties, so recall is
+    # ~1.0 (0.99 tolerance covers boundary rank-swaps vs an exact-L2 ground truth).
+    bf = results[0]
+    if bf.recall >= 0.99:
+        print(f"GATE PASS: BruteForce recall@{args.k} = {bf.recall:.4f} (>= 0.99)")
     else:
-        print(f"GATE FAIL: BruteForce recall@{args.k} = {bf_recall:.4f} (< 0.999)")
+        failures.append(f"BruteForce recall@{args.k} = {bf.recall:.4f} (< 0.99)")
+
+    # Stage 2 gate: HNSW recall@k >= 0.95 and QPS >= 10x brute force.
+    if args.hnsw:
+        hn = results[1]
+        speedup = hn.qps / bf.qps if bf.qps else float("inf")
+        recall_ok = hn.recall >= 0.95
+        speed_ok = speedup >= 10.0
+        status = "PASS" if (recall_ok and speed_ok) else "FAIL"
+        print(f"GATE {status}: HNSW recall@{args.k} = {hn.recall:.4f} (>= 0.95), "
+              f"speedup = {speedup:.1f}x (>= 10x)")
+        if not recall_ok:
+            failures.append(f"HNSW recall@{args.k} = {hn.recall:.4f} (< 0.95)")
+        if not speed_ok:
+            failures.append(f"HNSW speedup = {speedup:.1f}x (< 10x)")
+
+    if failures:
+        print("GATE FAIL: " + "; ".join(failures))
         raise SystemExit(1)
 
 

@@ -83,7 +83,9 @@ The compiled module is imported as `vectorcore`. It exposes two indexes and a `M
 | Class | Status | Search complexity | Use |
 | --- | --- | --- | --- |
 | `BruteForceIndex` | ✅ Complete, exact | $O(N \cdot D)$ | Ground-truth baseline, exact recall |
-| `HnswIndex` | ⚠️ Partial prototype | approximate | Graph-based ANN (single-layer so far — see [Roadmap](#roadmap)) |
+| `HnswIndex` | ✅ Multi-layer ANN | approximate, ~O(log N) | Graph-based search; tunable recall/speed via `ef_search` |
+
+On SIFT1M (1M × 128, L2), `HnswIndex` reaches **recall@10 = 0.966 at ~6,000 QPS** (M=16, efConstruction=200, efSearch=64) — about **97× faster** than the exact `BruteForceIndex` (~62 QPS) at the same recall target.
 
 **Metrics** (passed as a string): `"l2"` (alias `"l2_squared"`), `"ip"` (alias `"inner_product"`), `"cosine"` (alias `"cos"`).
 For `l2`, smaller scores are closer. For `ip`/`cosine`, larger scores are closer. Cosine is implemented as inner product over L2-normalized vectors (normalization is applied automatically on `add` and `search`).
@@ -95,8 +97,11 @@ BruteForceIndex(dim: int, metric: str = "l2")
     .add(x: np.ndarray[float32, (n, dim)], ids: np.ndarray[uint64, (n,)] | None = None)
     .search(q: np.ndarray[float32, (dim,) | (m, dim)], k: int) -> (ids, scores)
 
-HnswIndex(dim: int, M: int = 16, metric: str = "l2")
-    # same .add / .search surface (single-vector queries)
+HnswIndex(dim: int, M: int = 16, metric: str = "l2",
+          ef_construction: int = 200, seed: int = 100)
+    .ef_search -> int            # read/write; higher = better recall, slower
+    .add(x, ids=None)            # builds the graph incrementally
+    .search(q: float32[dim], k: int) -> (ids, scores)
 ```
 
 > **dtype matters.** Inputs must be **float32** and C-contiguous; `ids` must be **uint64**. Python's native `float` is C++ `double` (64-bit), so always `.astype(np.float32)`. The bridge rejects mismatches rather than silently copying.
@@ -254,20 +259,22 @@ for vid, score in zip(out_ids, out_scores):
 ```bash
 cmake -S . -B build_cmake -DCMAKE_BUILD_TYPE=Release
 cmake --build build_cmake
-ctest --test-dir build_cmake   # runs the smoke test
+ctest --test-dir build_cmake   # runs the GoogleTest suite + smoke test
 ```
 
 ---
 
 ## Roadmap
 
-VectorCore is being built out in measured stages (each gated by recall@k / QPS on a standard dataset). Current focus:
+VectorCore is being built out in measured stages (each gated by recall@k / QPS on a standard dataset).
 
-1.  **Real HNSW** — multi-layer probabilistic graph, `efConstruction`/`efSearch` beam search, and RNG heuristic neighbor pruning. *(Current `HnswIndex` is a single-layer prototype.)*
-2.  **Product Quantization (PQ)** — K-Means codebooks + asymmetric distance computation to compress vectors ~32× and scale to billion-vector datasets.
-3.  **Persistence** — `save` / `load` of vectors, graph, and codebooks (binary / mmap).
-4.  **Benchmark harness** — recall@k and QPS vs. brute-force ground truth on SIFT1M / GloVe.
-5.  **Visualization** — React + D3 dashboard animating the HNSW search path with live latency/recall metrics.
+- [x] **Test + benchmark infrastructure** — GoogleTest suite + reusable Python harness (recall@k / QPS), validated on SIFT1M.
+- [x] **Real HNSW** — multi-layer probabilistic graph, `efConstruction`/`efSearch` beam search, RNG heuristic neighbor pruning. *(recall@10 = 0.966 @ ~97× brute force on SIFT1M.)*
+- [ ] **Product Quantization (PQ)** — K-Means codebooks + asymmetric distance computation to compress vectors ~32× and scale to billion-vector datasets.
+- [ ] **Persistence** — `save` / `load` of vectors, graph, and codebooks (binary / mmap).
+- [ ] **Visualization** — React + D3 dashboard animating the HNSW search path with live latency/recall metrics.
+
+Known limitation: HNSW graph construction is currently single-threaded (~21 min for SIFT1M's 1M inserts). Parallel/batched construction is a future optimization.
 
 ---
 

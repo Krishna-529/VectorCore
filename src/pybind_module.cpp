@@ -198,12 +198,16 @@ PYBIND11_MODULE(vectorcore, m) {
       ;
 
   py::class_<vectorcore::HnswIndex>(m, "HnswIndex")
-      .def(py::init([](std::size_t dim, std::size_t M, const std::string& metric) {
-             return vectorcore::HnswIndex(dim, M, parse_metric(metric));
+      .def(py::init([](std::size_t dim, std::size_t M, const std::string& metric,
+                       std::size_t ef_construction, std::uint64_t seed) {
+             return vectorcore::HnswIndex(dim, M, parse_metric(metric), ef_construction, seed);
            }),
-           py::arg("dim"), py::arg("M") = 16, py::arg("metric") = "l2")
+           py::arg("dim"), py::arg("M") = 16, py::arg("metric") = "l2",
+           py::arg("ef_construction") = 200, py::arg("seed") = 100)
       .def_property_readonly("dim", &vectorcore::HnswIndex::dim)
       .def_property_readonly("size", &vectorcore::HnswIndex::size)
+      .def_property("ef_search", &vectorcore::HnswIndex::ef_search,
+                    &vectorcore::HnswIndex::set_ef_search)
       .def("add", [](vectorcore::HnswIndex& self, const py::array& x, py::object ids_obj) {
         auto view = as_float32_matrix_view(x, self.dim());
 

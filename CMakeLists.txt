@@ -93,6 +93,7 @@ if(VECTORCORE_BUILD_TESTS)
   add_executable(vectorcore_unit_tests
     tests/test_distance.cpp
     tests/test_bruteforce.cpp
+    tests/test_hnsw.cpp
   )
   target_link_libraries(vectorcore_unit_tests PRIVATE vectorcore_core GTest::gtest_main)
 
