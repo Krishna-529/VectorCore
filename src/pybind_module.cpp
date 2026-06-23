@@ -235,15 +235,42 @@ PYBIND11_MODULE(vectorcore, m) {
         self.add(view.data, view.rows, ids_ptr);
       }, py::arg("x"), py::arg("ids") = py::none())
       .def("search", [](const vectorcore::HnswIndex& self, const py::array& q, std::size_t k) {
-        auto v = as_float32_vector_view(q, self.dim());
+        // Support q shape (dim,) or (m, dim), matching BruteForceIndex.
+        py::buffer_info info = q.request();
 
-        py::array_t<std::uint64_t> out_ids(k);
-        py::array_t<float> out_scores(k);
+        if (info.itemsize != sizeof(float) || info.format != py::format_descriptor<float>::format()) {
+          throw std::invalid_argument("Expected float32 queries");
+        }
 
-        self.search(v.data, k,
-                    static_cast<std::uint64_t*>(out_ids.request().ptr),
-                    static_cast<float*>(out_scores.request().ptr));
-        return py::make_tuple(out_ids, out_scores);
+        if (info.ndim == 1) {
+          auto v = as_float32_vector_view(q, self.dim());
+          py::array_t<std::uint64_t> out_ids(k);
+          py::array_t<float> out_scores(k);
+
+          self.search(v.data, k,
+                      static_cast<std::uint64_t*>(out_ids.request().ptr),
+                      static_cast<float*>(out_scores.request().ptr));
+          return py::make_tuple(out_ids, out_scores);
+        }
+
+        if (info.ndim == 2) {
+          auto mat = as_float32_matrix_view(q, self.dim());
+          const std::size_t m_queries = mat.rows;
+
+          py::array_t<std::uint64_t> out_ids({m_queries, k});
+          py::array_t<float> out_scores({m_queries, k});
+
+          auto* ids_ptr = static_cast<std::uint64_t*>(out_ids.request().ptr);
+          auto* sc_ptr = static_cast<float*>(out_scores.request().ptr);
+
+          for (std::size_t i = 0; i < m_queries; ++i) {
+            const float* qi = mat.data + (i * self.dim());
+            self.search(qi, k, ids_ptr + (i * k), sc_ptr + (i * k));
+          }
+          return py::make_tuple(out_ids, out_scores);
+        }
+
+        throw std::invalid_argument("q must be 1D (dim,) or 2D (m, dim)");
       }, py::arg("q"), py::arg("k"))
       ;
 }

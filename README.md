@@ -255,6 +255,17 @@ for vid, score in zip(out_ids, out_scores):
     print(f"id={vid}  score={score:.5f}")   # nearest is the query itself
 ```
 
+### Semantic search / RAG demo
+[`examples/rag_demo.py`](examples/rag_demo.py) shows the end-to-end retrieval
+pipeline: text → `sentence-transformers` embeddings → `HnswIndex` (cosine) →
+top-k semantically relevant documents. Queries use *different words* than the
+corpus, so only a semantic (not keyword) match succeeds.
+```bash
+pip install .
+pip install -r examples/requirements.txt   # sentence-transformers (CPU torch ok)
+python examples/rag_demo.py
+```
+
 ### Standalone C++ build / test
 ```bash
 cmake -S . -B build_cmake -DCMAKE_BUILD_TYPE=Release
@@ -270,6 +281,7 @@ VectorCore is being built out in measured stages (each gated by recall@k / QPS o
 
 - [x] **Test + benchmark infrastructure** — GoogleTest suite + reusable Python harness (recall@k / QPS), validated on SIFT1M.
 - [x] **Real HNSW** — multi-layer probabilistic graph, `efConstruction`/`efSearch` beam search, RNG heuristic neighbor pruning. *(recall@10 = 0.966 @ ~97× brute force on SIFT1M.)*
+- [x] **Semantic search demo** — `sentence-transformers` → `HnswIndex` (cosine) RAG retrieval ([examples/rag_demo.py](examples/rag_demo.py)); batched `(m, dim)` query support.
 - [ ] **Product Quantization (PQ)** — K-Means codebooks + asymmetric distance computation to compress vectors ~32× and scale to billion-vector datasets.
 - [ ] **Persistence** — `save` / `load` of vectors, graph, and codebooks (binary / mmap).
 - [ ] **Visualization** — React + D3 dashboard animating the HNSW search path with live latency/recall metrics.

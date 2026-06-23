@@ -1,0 +1,6 @@
+# Dependencies for the semantic-search / RAG demo (examples/rag_demo.py).
+# The core `vectorcore` engine itself needs only numpy.
+numpy
+sentence-transformers
+# torch is pulled in by sentence-transformers. For a smaller CPU-only install:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
