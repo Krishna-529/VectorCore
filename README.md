@@ -274,6 +274,15 @@ pip install -r examples/requirements.txt   # sentence-transformers (CPU torch ok
 python examples/rag_demo.py
 ```
 
+### Visualization (React + D3)
+An interactive dashboard animates the HNSW search path — greedy descent through
+the upper layers then the layer-0 beam search — over a 2D projection of the real
+graph, with live latency/recall metrics. See [viz/README.md](viz/README.md):
+```bash
+python viz/export_graph.py     # trace a query -> viz/public/graph_data.json
+cd viz && npm install && npm run dev
+```
+
 ### Standalone C++ build / test
 ```bash
 cmake -S . -B build_cmake -DCMAKE_BUILD_TYPE=Release
@@ -292,9 +301,9 @@ VectorCore is being built out in measured stages (each gated by recall@k / QPS o
 - [x] **Semantic search demo** — `sentence-transformers` → `HnswIndex` (cosine) RAG retrieval ([examples/rag_demo.py](examples/rag_demo.py)); batched `(m, dim)` query support.
 - [x] **Product Quantization (PQ)** — per-subspace K-Means (k-means++) + uint8 codes + asymmetric distance computation ([PQIndex](include/vectorcore/pq_index.h)). SIFT1M tradeoff: m=64 → recall@10 0.90 @ 8×, m=32 → 0.72 @ 16×, m=16 → 0.54 @ 32×. Sweep: `python -m benchmark.pq_sweep`. *(Re-ranking / OPQ to push recall at high compression is a future extension.)*
 - [x] **Persistence** — binary `save(path)` / `load(path)` for all three indexes ([io.h](include/vectorcore/io.h)); verified byte-identical search results across a fresh process.
-- [ ] **Visualization** — React + D3 dashboard animating the HNSW search path with live latency/recall metrics.
+- [x] **Visualization** — React + D3 dashboard ([viz/](viz/README.md)) animating the real HNSW search path (greedy descent + layer-0 beam search) over a 2D PCA projection, with live latency / recall / nodes-visited metrics and playback controls.
 
-Known limitation: HNSW graph construction is currently single-threaded (~21 min for SIFT1M's 1M inserts). Parallel/batched construction is a future optimization.
+All roadmap stages complete. Future extensions: PQ re-ranking / OPQ for higher recall at high compression; parallel HNSW graph construction (currently single-threaded, ~21 min for SIFT1M's 1M inserts); IVF / HNSW+PQ for billion-scale.
 
 ---
 

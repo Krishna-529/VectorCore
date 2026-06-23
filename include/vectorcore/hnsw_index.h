@@ -51,6 +51,22 @@ public:
   void save(const std::string& path) const;
   static HnswIndex load(const std::string& path);
 
+  // --- Read-only graph introspection (for tracing / visualization) ---
+  // These expose internal node indices [0, size()). With default ids the
+  // internal index equals the external id.
+  std::uint32_t entry_point() const noexcept { return entry_point_; }
+  int max_level() const noexcept { return max_level_; }
+  int node_level(std::size_t i) const { return node_level_.at(i); }
+
+  // Neighbors of internal node `node` at the given layer (empty if absent).
+  std::vector<std::uint32_t> neighbors(std::size_t node, int layer) const {
+    if (node >= links_.size() || layer < 0 ||
+        layer >= static_cast<int>(links_[node].size())) {
+      return {};
+    }
+    return links_[node][layer];
+  }
+
 private:
   using Candidate = std::pair<float, std::uint32_t>;  // (badness, node index)
 

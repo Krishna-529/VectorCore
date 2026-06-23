@@ -1,5 +1,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 
 #include <cstdint>
 #include <stdexcept>
@@ -277,6 +278,11 @@ PYBIND11_MODULE(vectorcore, m) {
       }, py::arg("q"), py::arg("k"))
       .def("save", &vectorcore::HnswIndex::save, py::arg("path"))
       .def_static("load", &vectorcore::HnswIndex::load, py::arg("path"))
+      // Graph introspection for tracing / visualization.
+      .def_property_readonly("entry_point", &vectorcore::HnswIndex::entry_point)
+      .def_property_readonly("max_level", &vectorcore::HnswIndex::max_level)
+      .def("node_level", &vectorcore::HnswIndex::node_level, py::arg("i"))
+      .def("neighbors", &vectorcore::HnswIndex::neighbors, py::arg("node"), py::arg("layer"))
       ;
 
   py::class_<vectorcore::PQIndex>(m, "PQIndex")
