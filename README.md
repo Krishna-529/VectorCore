@@ -45,27 +45,32 @@ VectorCore is a clean-sheet implementation of these concepts.
 The system operates as a hybrid application: two languages, shared memory.
 
 ```mermaid
-graph TD
-    User[User / Python Script] -->|NumPy float32 array| Interface[pybind11 Module: vectorcore]
-    Interface -->|Zero-Copy const float*| Engine[C++ Index]
+---
+config:
+  layout: dagre
+---
+flowchart TB
+  subgraph PY["Python Land"]
+    User["User / Python Script"]
+    Numpy["NumPy Memory Allocator"]
+  end
 
-    subgraph "Python Land"
-        User
-        Numpy[NumPy Memory Allocator]
-    end
+  subgraph CPP["C++ Land"]
+    Interface["pybind11 Module: vectorcore"]
+    BF["BruteForceIndex"]
+    HNSW["HnswIndex"]
+    Dist["AVX2 Distance Kernels"]
+  end
 
-    subgraph "C++ Land"
-        Interface
-        BF[BruteForceIndex]
-        HNSW[HnswIndex - partial]
-        Dist[AVX2 Distance Kernels]
-    end
+  Results["Top-K ids + scores → Python"]
 
-    Numpy -.->|Raw Memory Read| BF
-    Numpy -.->|Raw Memory Read| HNSW
-    BF --> Dist
-    HNSW --> Dist
-    Dist -->|Top-K ids + scores| User
+  User -- "NumPy float32 array" --> Interface
+  Numpy -. "zero-copy buffer read" .-> Interface
+  Interface -- "const float*" --> BF
+  Interface -- "const float*" --> HNSW
+  BF --> Dist
+  HNSW --> Dist
+  Dist -- "results" --> Results
 ```
 
 1.  **Storage Layer**: a strictly typed, contiguous, 32-byte-aligned memory block managed by C++.
